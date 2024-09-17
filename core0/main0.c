@@ -11,11 +11,12 @@ void put_multiple_requests() {
     volatile char *uart = (volatile char *)0x10000000;
     
     // Payload data for requests
-    char payload1[] = "Request 1";
-    char payload2[] = "Request 2";
-    char payload3[] = "Request 3";
-    char payload4[] = "Request 4";
-    char payload5[] = "Request 5";
+    char payload1[] = "Request 1: Initialize the system and perform a full diagnostic check of all sensors.";
+    char payload2[] = "Request 2: Retrieve the latest environmental data including temperature, humidity, and pressure.";
+    char payload3[] = "Request 3: Execute a firmware update on all connected devices and log the update status.";
+    char payload4[] = "Request 4: Run a performance benchmark test on the network and report throughput and latency.";
+    char payload5[] = "Request 5: Initiate a system shutdown sequence, ensuring that all data is safely saved before powering off.";
+
     
     // Put 5 requests into the queue
     put_request(payload1, sizeof(payload1));

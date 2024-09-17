@@ -4,6 +4,7 @@
 #define HEAD_ADDR 0x82000000  // Address of head pointer (producer)
 #define TAIL_ADDR 0x82000004  // Address of tail pointer (consumer)
 #define QUEUE_START_ADDR 0x82000008  // Start of the queue
+#define QUEUE_SIZE 0x10000  // Define the queue size
 
 #include <stdint.h>
 #include <string.h>

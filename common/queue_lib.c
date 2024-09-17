@@ -5,24 +5,61 @@
 void put_request(void* req_ptr, uint32_t size) {
     if (size == 0) return;
     uint32_t head = READ_MEM(HEAD_ADDR);  // Get current head pointer
-    uint32_t next_free_addr;
-    if (((request_t*)head)->size != 0)
+    uint32_t next_free_addr = head;
+    if (((request_t*)head)->size != 0) { // It will only go to else on the first initialization
         next_free_addr = head + sizeof(request_t) + ((request_t*)head)->size;
-    else
-        next_free_addr = head;
+        if(next_free_addr >= (QUEUE_SIZE + QUEUE_START_ADDR)){       // current head points to a wraped around object
+            next_free_addr -= (QUEUE_SIZE + QUEUE_START_ADDR);   
+        }
+    }
+
+    uint32_t total_size = sizeof(request_t) + size;
+    uint32_t tail = READ_MEM(TAIL_ADDR);
+    if (next_free_addr + total_size > QUEUE_SIZE + QUEUE_START_ADDR) {
+        // Calculate remaining space before wrapping around
+        uint32_t space_before_wrap = (QUEUE_SIZE + QUEUE_START_ADDR) - next_free_addr;
     
-    // Create new request at next_free_addr
-    request_t* req = (request_t*)next_free_addr;
-    req->next = 0; // No next request yet
-    req->size = size;
-    req->consumed = 0;
+        // Not enough space before wrap, check tail pointer
+        // first condition should never be true That means that tail data has already been overwritten
+        if (tail <= next_free_addr || tail <= next_free_addr + total_size) {    // no object should be equal or more than half of total queue size
+            // If tail pointer is between next_free_addr and overflow, reject the request
+            return;
+        }
+
+        // Create new request at next_free_addr
+        request_t* req = (request_t*)next_free_addr;
+        req->next = 0; // No next request yet
+        req->size = size;
+        req->consumed = 0;
+
+        // Copy part of the payload that fits before the wrap
+        memcpy(req->payload, req_ptr, space_before_wrap - sizeof(request_t));
+
+        // Step 2: Wrap around and copy the remaining payload at the start of the queue
+        req_ptr = (char*)req_ptr + (space_before_wrap - sizeof(request_t));
+        uint32_t remaining_size = size - (space_before_wrap - sizeof(request_t));
+
+        uint32_t next_free_addr2 = QUEUE_START_ADDR;  // Wrap to the start of the queue
+        memcpy((void*)next_free_addr2, req_ptr, remaining_size);
+        WRITE_MEM(HEAD_ADDR, next_free_addr);
+        
+
+    } else {
+
     
-    // Copy the payload
-    memcpy(req->payload, req_ptr, size);
-    
-    request_t* last_req = (request_t*)head;
-    last_req->next = next_free_addr;  // Link last request to new one
-    WRITE_MEM(HEAD_ADDR, next_free_addr);
+        // Create new request at next_free_addr
+        request_t* req = (request_t*)next_free_addr;
+        req->next = 0; // No next request yet
+        req->size = size;
+        req->consumed = 0;
+        
+        // Copy the payload
+        memcpy(req->payload, req_ptr, size);
+        
+        request_t* last_req = (request_t*)head;
+        last_req->next = next_free_addr;  // Link last request to new one
+        WRITE_MEM(HEAD_ADDR, next_free_addr);
+    }
 }
 
 
@@ -46,7 +83,7 @@ void* get_request(uint32_t* size_out) {
     uint32_t tail = READ_MEM(TAIL_ADDR);  // Get current tail pointer
 
     request_t* req = (request_t*)tail;  // Get the current request
-    if (req->consumed == 0 && req->size != 0){
+    if (req->consumed == 0 && req->size != 0){  // consumed and size will be zero for first request object only
         // Extract the payload size
         *size_out = req->size;
         
