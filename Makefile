@@ -69,5 +69,28 @@ dump: $(TARGET)
 generate-assembly: $(BUILD_DIR)
 	$(CC) $(CFLAGS) -S src/main.c -o $(BUILD_DIR)/main.S
 
+#qemu single core emulation.
+qemu-single-core:
+	qemu-system-riscv32 -nographic -machine virt -bios none -kernel build/output.elf -S -s
 
-	
+
+TARGET_CORE0 = $(BUILD_DIR)/core0/output0.elf
+TARGET_CORE1 = $(BUILD_DIR)/core1/output1.elf
+
+# Core 0 target
+core0: $(TARGET_CORE0)
+$(TARGET_CORE0): $(BUILD_DIR)
+	make -C core0 all
+
+# Core 1 target
+core1: $(TARGET_CORE1)
+$(TARGET_CORE1): $(BUILD_DIR)
+	make -C core1 all
+
+qemu-multicore: clean core0 core1
+	qemu-system-riscv32 \
+		-nographic \
+		-machine virt -cpu rv32 -m 4G \
+		-smp 2 \
+		-bios none -device loader,file=build/core0/output0.elf,cpu-num=0 -device loader,file=build/core1/output1.elf,cpu-num=1 
+
