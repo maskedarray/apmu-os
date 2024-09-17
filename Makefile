@@ -94,3 +94,10 @@ qemu-multicore: clean core0 core1
 		-smp 2 \
 		-bios none -device loader,file=build/core0/output0.elf,cpu-num=0 -device loader,file=build/core1/output1.elf,cpu-num=1 
 
+qemu-multicore-debug: clean core0 core1
+	qemu-system-riscv32 \
+		-nographic \
+		-machine virt -cpu rv32 -m 4G \
+		-smp 2 \
+		-bios none -device loader,file=build/core0/output0.elf,cpu-num=0 -device loader,file=build/core1/output1.elf,cpu-num=1 -S -s
+

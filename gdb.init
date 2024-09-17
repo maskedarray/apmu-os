@@ -1,0 +1,5 @@
+target remote:1234
+file build/core0/output0.elf
+add-symbol-file build/core1/output1.elf
+break main
+c
