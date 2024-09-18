@@ -22,8 +22,12 @@ void put_multiple_requests() {
     put_request(payload1, sizeof(payload1));
     put_request(payload2, sizeof(payload2));
     put_request(payload3, sizeof(payload3));
-    put_request(payload4, sizeof(payload4));
-    put_request(payload5, sizeof(payload5));
+    while (put_request(payload4, sizeof(payload4)) == PUT_FAIL){
+
+    }
+    while (put_request(payload5, sizeof(payload5)) == PUT_FAIL){
+
+    }
     
     // Print success message to UART
     const char *msg = "5 requests placed into the queue.\n";

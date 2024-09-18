@@ -2,28 +2,32 @@
 
 
 // Function to add a new request object to the queue (producer)
-void put_request(void* req_ptr, uint32_t size) {
+int put_request(void* req_ptr, uint32_t size) {
     if (size == 0) return;
     uint32_t head = READ_MEM(HEAD_ADDR);  // Get current head pointer
     uint32_t next_free_addr = head;
+    uint32_t tail = READ_MEM(TAIL_ADDR);
     if (((request_t*)head)->size != 0) { // It will only go to else on the first initialization
         next_free_addr = head + sizeof(request_t) + ((request_t*)head)->size;
         if(next_free_addr >= (QUEUE_SIZE + QUEUE_START_ADDR)){       // current head points to a wraped around object
-            next_free_addr -= (QUEUE_SIZE + QUEUE_START_ADDR);   
+            next_free_addr -= (QUEUE_SIZE); 
+            if ((next_free_addr + sizeof(request_t) + size) >= tail)
+                return PUT_FAIL;  
         }
     }
 
     uint32_t total_size = sizeof(request_t) + size;
-    uint32_t tail = READ_MEM(TAIL_ADDR);
+    
     if (next_free_addr + total_size > QUEUE_SIZE + QUEUE_START_ADDR) {
         // Calculate remaining space before wrapping around
         uint32_t space_before_wrap = (QUEUE_SIZE + QUEUE_START_ADDR) - next_free_addr;
     
         // Not enough space before wrap, check tail pointer
         // first condition should never be true That means that tail data has already been overwritten
-        if (tail <= next_free_addr || tail <= next_free_addr + total_size) {    // no object should be equal or more than half of total queue size
+        uint32_t end_addr = QUEUE_START_ADDR + total_size - space_before_wrap;
+        if (tail <= end_addr) {    // no object should be equal or more than half of total queue size
             // If tail pointer is between next_free_addr and overflow, reject the request
-            return;
+            return PUT_FAIL;
         }
 
         // Create new request at next_free_addr
@@ -41,6 +45,9 @@ void put_request(void* req_ptr, uint32_t size) {
 
         uint32_t next_free_addr2 = QUEUE_START_ADDR;  // Wrap to the start of the queue
         memcpy((void*)next_free_addr2, req_ptr, remaining_size);
+        request_t* last_req = (request_t*)head;
+        last_req->next = next_free_addr;  // Link last request to new one
+
         WRITE_MEM(HEAD_ADDR, next_free_addr);
         
 
@@ -60,6 +67,7 @@ void put_request(void* req_ptr, uint32_t size) {
         last_req->next = next_free_addr;  // Link last request to new one
         WRITE_MEM(HEAD_ADDR, next_free_addr);
     }
+    return PUT_SUCCESS;
 }
 
 
@@ -87,10 +95,7 @@ void* get_request(uint32_t* size_out) {
         // Extract the payload size
         *size_out = req->size;
         
-        // Move the tail to the next request (or keep same if next = 0)
-        if (req->next != 0) {
-            WRITE_MEM(TAIL_ADDR, req->next);  // Move to the next request
-        }
+        
 
         
         // Return pointer to the request
@@ -109,20 +114,61 @@ void consume_requests() {
     while (1) {
         uint32_t size;
         request_t *request_payload = get_request(&size);  // Check for a new request
+
+        
         
         if (request_payload != NULL) {
-            // Print the payload (request data) over UART
-            for (uint32_t i = 0; i < size; i++) {
-                *uart = request_payload->payload[i];
-            }
-            
-            const char *newline = "\n";
-            while (*newline) {
-                *uart = *newline++;
-            }
 
-            request_payload->consumed = 1;
+            if ( ((char *)request_payload + sizeof(request_t) + request_payload->size) >  (QUEUE_SIZE+QUEUE_START_ADDR) ){ // wrap around condition
+                uint32_t bytes_before_wrap = QUEUE_SIZE + QUEUE_START_ADDR - (uint32_t)(request_payload->payload);
+                uint32_t bytes_after_wrap = request_payload->size - bytes_before_wrap;
+
+                // Print the first part of the payload (before wrap) over UART
+                for (uint32_t i = 0; i < bytes_before_wrap; i++) {
+                    *uart = request_payload->payload[i];
+                }
+
+                // Now print the remaining part of the payload that wrapped around
+                volatile char *wrapped_payload = (volatile char *)QUEUE_START_ADDR;  // Start address after wrap
+                for (uint32_t i = 0; i < bytes_after_wrap; i++) {
+                    *uart = wrapped_payload[i];
+                }
+
+                const char *newline = "\n";
+                while (*newline) {
+                    *uart = *newline++;
+                }
+
+                // Mark the request as consumed
+                request_payload->consumed = 1;
+                // Move the tail to the next request (or keep same if next = 0)
+                if (request_payload->next != 0) {
+                    WRITE_MEM(TAIL_ADDR, request_payload->next);  // Move to the next request
+                }
+            } else {
+
+                // Print the payload (request data) over UART
+                for (uint32_t i = 0; i < size; i++) {
+                    *uart = request_payload->payload[i];
+                }
+                
+                const char *newline = "\n";
+                while (*newline) {
+                    *uart = *newline++;
+                }
+
+                request_payload->consumed = 1;
+                // Move the tail to the next request (or keep same if next = 0)
+                if (request_payload->next != 0) {
+                    WRITE_MEM(TAIL_ADDR, request_payload->next);  // Move to the next request
+                }
+            }
+        }
+        if (request_payload->next != 0) {
+            WRITE_MEM(TAIL_ADDR, request_payload->next);  // Move to the next request
         }
         
     }
 }
+// TODO: handle the corner case when sieze is greater than max_size /2
+// TODO: handle the corner case when the request_t struct variables such as size and consumed also wrap around 
