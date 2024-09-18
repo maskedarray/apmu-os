@@ -23,8 +23,7 @@ SOFTWARE.
 
 .section .text
 
-# default_exc_handler:
-#   jal x0, simple_exc_handler
+
 _start:
   .global _start
 
@@ -78,35 +77,25 @@ zero_loop:
   ble x26, x27, zero_loop
 zero_loop_end:
 
-
+/* Set up trap handler */
+  la t0, _trap_handler
+  csrw mtvec, t0
 main_entry:
   /* jump to main program entry point (argc = argv = 0) */
   addi x10, x0, 0
   addi x11, x0, 0
   jal x1, main
 
-  /* Halt simulation */
-#   li x5, SIM_CTRL_BASE + SIM_CTRL_CTRL
-#   li x6, 1
-#   sw x6, 0(x5)
 
   /* If execution ends up here just put the core to sleep */
 sleep_loop:
 #   wfi
   j sleep_loop
 
-/* =================================================== [ exceptions ] === */
-/* This section has to be down here, since we have to disable rvc for it  */
+/* Trap handler for interrupts/exceptions */
+_trap_handler:
+    j _trap_loop
 
-#   .section .vectors, "ax"
-#   .option norvc;
-
-#   // All unimplemented interrupts/exceptions go to the default_exc_handler.
-#   .org 0x00
-#   .rept 32
-#   jal x0, default_exc_handler
-#   .endr
-
-#   // reset vector
-#   .org 0x80
-#   jal x0, reset_handler
+_trap_loop:
+    /* Infinite loop in trap handler */
+    j _trap_loop

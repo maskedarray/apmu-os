@@ -45,7 +45,7 @@ $(TARGET): $(BUILD_DIR)/crt0.o $(BUILD_DIR)/main1.o $(BUILD_DIR)/queue_lib.o | $
 
 dump: $(TARGET)
 	@echo "Generating assembly dump for Core1..."
-	$(CC_PREFIX)objdump -d $(TARGET) > $(BUILD_DIR)/output1.asm
+	$(CC_PREFIX)objdump -d --disassemble-all --debugging $(TARGET) > $(BUILD_DIR)/output1.asm
 
 clean:
 	rm -rf $(BUILD_DIR)

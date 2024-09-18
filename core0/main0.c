@@ -13,27 +13,29 @@ void put_multiple_requests() {
     // Payload data for requests
     char payload1[] = "Request 1: Initialize the system and perform a full diagnostic check of all sensors.";
     char payload2[] = "Request 2: Retrieve the latest environmental data including temperature, humidity, and pressure.";
-    char payload3[] = "Request 3: Execute a firmware update on all connected devices and log the update status.";
+    char payload3[] = "Request 3: Execute a firmware update on all connected devices and log the update status.firmware update on all up..";
     char payload4[] = "Request 4: Run a performance benchmark test on the network and report throughput and latency.";
     char payload5[] = "Request 5: Initiate a system shutdown sequence, ensuring that all data is safely saved before powering off.";
 
     
     // Put 5 requests into the queue
-    put_request(payload1, sizeof(payload1));
-    put_request(payload2, sizeof(payload2));
-    put_request(payload3, sizeof(payload3));
-    while (put_request(payload4, sizeof(payload4)) == PUT_FAIL){
+    put_request(payload1, sizeof(payload1),1);
+    put_request(payload2, sizeof(payload2),1);
+    while (put_request(payload3, sizeof(payload3),1) == PUT_FAIL){
 
     }
-    while (put_request(payload5, sizeof(payload5)) == PUT_FAIL){
+    while (put_request(payload4, sizeof(payload4),1) == PUT_FAIL){
+
+    }
+    while (put_request(payload5, sizeof(payload5),5) == PUT_FAIL){
 
     }
     
-    // Print success message to UART
-    const char *msg = "5 requests placed into the queue.\n";
-    while (*msg) {
-        *uart = *msg++;
-    }
+    // // Print success message to UART
+    // const char *msg = "5 requests placed into the queue.\n";
+    // while (*msg) {
+    //     *uart = *msg++;
+    // }
     
     while (1);  // Keep core active
 }

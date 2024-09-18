@@ -30,7 +30,7 @@ typedef struct request {
 #define READ_MEM(addr) (*((volatile uint32_t *)(addr)))
 
 // Function prototypes
-int put_request(void* req_ptr, uint32_t size);
+int put_request(void* req_ptr, uint32_t size, int reqnum);
 void* get_request(uint32_t* size_out);
 void consume_requests(void);
 
