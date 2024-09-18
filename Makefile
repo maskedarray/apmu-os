@@ -70,7 +70,10 @@ generate-assembly: $(BUILD_DIR)
 	$(CC) $(CFLAGS) -S src/main.c -o $(BUILD_DIR)/main.S
 
 #qemu single core emulation.
-qemu-single-core:
+qemu-single-core: clean all
+	qemu-system-riscv32 -nographic -machine virt -bios none -kernel build/output.elf 
+
+qemu-single-core-debug: clean all
 	qemu-system-riscv32 -nographic -machine virt -bios none -kernel build/output.elf -S -s
 
 
