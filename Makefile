@@ -2,7 +2,7 @@
 
 # Compiler and flags
 CC = riscv32-unknown-elf-gcc
-CFLAGS = -march=rv32im -mabi=ilp32 -mcmodel=medany \
+CFLAGS = -march=rv32imcb -mabi=ilp32 -mcmodel=medany \
          -Wall -fvisibility=hidden -ffreestanding \
          -nostartfiles -O0 -ggdb3 -I common/include
 

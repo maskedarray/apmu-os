@@ -1,12 +1,40 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <events.h>
-#include <dprintf.h>
+#include <debug_printf.h>
+void delay(unsigned int count) {
+    while (count--) {
+        // Simple delay loop
+        asm volatile("nop");
+    }
+}
 
 
 // Example event handler functions (replace with actual functions)
 void handle_event0() {
-    printf("Handler for event 0\n");
+    // printf("Handler for event 0\n");
+    delay(100000000);
+    uint64_t mcycle_value = get_cycles(); // Get the 64-bit cycle count
+
+    // Buffer to hold the formatted string
+    char buffer[50]; // Ensure it's large enough to hold the string
+
+    // Generate the string
+    sprintf(buffer, "Hello, RISC-V! %u\n", (mcycle_value>>32)); // Use %llu for 64-bit unsigned
+
+    // Print the result using printf
+    printf("%s", buffer);
+
+
+        int64_t a = 1234567890123456789LL;
+    int64_t b = 9876543210987654321LL;
+    int64_t result = a + b;
+
+    sprintf(buffer, "Hello, RISC-V! %lld\n", result); // Use %llu for 64-bit unsigned
+
+    // Print the result using printf
+    printf("%s", buffer);
+    
     return;
     // Logic for handling event 0
 }
@@ -20,7 +48,16 @@ uint32_t wfp(void){
 
 int main() {
     
-    printf("Hello, RISC-V!\n");
+    uint32_t mcycle_value;
+
+    // Assembly block to read mcycle CSR
+    asm volatile (
+        "csrr %0, mcycle"  // Read the mcycle register into mcycle_value
+        : "=r" (mcycle_value)  // Output: mcycle_value
+    );
+
+    // Print the result using printf
+    printf("Hello, RISC-V! %d\n", mcycle_value);
 
     
     // Initialize event handlers before entering the loop

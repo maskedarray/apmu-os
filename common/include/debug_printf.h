@@ -5,9 +5,9 @@
 
 
 
-#define printf dprintf
+#define printf debug_printf
 
-int dprintf(const char *fmt, ...);
+int debug_printf(const char *fmt, ...);
 
 
 #endif

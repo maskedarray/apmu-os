@@ -1,4 +1,4 @@
-#include "dprintf.h"
+#include "debug_printf.h"
 
 
 volatile char *uart = (volatile char *)0x10000000;
@@ -11,7 +11,7 @@ int putchar(int ch) {
 }
 
 // Minimalistic printf implementation
-int printf(const char *fmt, ...) {
+int debug_printf(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
 
