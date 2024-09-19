@@ -26,7 +26,7 @@ TARGET = $(BUILD_DIR)/output.elf
 # Assembly dump file
 ASM_FILE_DISASM = $(BUILD_DIR)/output.asm
 ASM_FILE = $(BUILD_DIR)/main.s
-OBJ_FILES = $(BUILD_DIR)/crt0.o $(BUILD_DIR)/main.o
+OBJ_FILES = $(BUILD_DIR)/crt0.o $(BUILD_DIR)/main.o $(patsubst $(COMMON_SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(wildcard $(COMMON_SRC_DIR)/*.c))
 
 # Binary file
 BIN_FILE = $(BUILD_DIR)/output.bin

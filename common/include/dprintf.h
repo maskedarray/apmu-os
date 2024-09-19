@@ -4,7 +4,6 @@
 #include <stdarg.h>
 
 
-volatile char *uart = (volatile char *)0x10000000;
 
 #define printf dprintf
 

@@ -6,6 +6,7 @@
 
 // Example event handler functions (replace with actual functions)
 void handle_event0() {
+    printf("Handler for event 0\n");
     return;
     // Logic for handling event 0
 }

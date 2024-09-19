@@ -16,9 +16,7 @@ typedef struct {
     event_handler_t handler;
 } event_map_t;
 
-// Global event map
-event_map_t event_map[MAX_EVENTS];
-size_t event_count = 0;  // Keeps track of the number of registered events
+
 
 void init_event_handlers();
 void process_events(uint32_t bitmap);

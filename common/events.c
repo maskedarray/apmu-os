@@ -1,6 +1,8 @@
 #include <events.h>
 
-
+// Global event map
+event_map_t event_map[MAX_EVENTS];
+size_t event_count = 0;  // Keeps track of the number of registered events
 
 // Function to register an event handler
 int register_event_handler(uint32_t bitmask, event_handler_t handler) {

@@ -1,7 +1,7 @@
 #include "dprintf.h"
 
 
-
+volatile char *uart = (volatile char *)0x10000000;
 
 
 // Implement putchar to send data to UART
