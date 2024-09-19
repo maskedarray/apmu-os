@@ -4,13 +4,14 @@
 CC = riscv32-unknown-elf-gcc
 CFLAGS = -march=rv32im -mabi=ilp32 -mcmodel=medany \
          -Wall -fvisibility=hidden -ffreestanding \
-         -nostartfiles -O0 -ggdb3
+         -nostartfiles -O0 -ggdb3 -I common/include
 
 # Source directory
 SRC_DIR = .
+COMMON_SRC_DIR = ./common
 
 # Source files
-SRCS = $(SRC_DIR)/crt0.s $(SRC_DIR)/main.c
+SRCS = $(SRC_DIR)/crt0.s $(SRC_DIR)/main.c $(wildcard $(COMMON_SRC_DIR)/*.c)
 
 # Linker script
 LDSCRIPT = $(SRC_DIR)/linker.ld
@@ -52,8 +53,13 @@ $(BUILD_DIR)/main.o: $(BUILD_DIR)/main.s | $(BUILD_DIR)
 # Modify the .s files
 
 
+
+# Compile common .c files to .o
+$(BUILD_DIR)/%.o: $(COMMON_SRC_DIR)/%.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
 # Compile .s to .o after modification
-compile_asm: $(BUILD_DIR)/crt0.o $(BUILD_DIR)/main.o
+compile_asm: $(BUILD_DIR)/crt0.o $(BUILD_DIR)/main.o $(patsubst $(COMMON_SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(wildcard $(COMMON_SRC_DIR)/*.c))
 
 # Link object files to create ELF
 $(TARGET): compile_asm | $(BUILD_DIR)
