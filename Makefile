@@ -1,10 +1,10 @@
 # Makefile for RISC-V ELF compilation and linking
 
 # Compiler and flags
-CC = riscv32-unknown-elf-gcc
-LD = riscv32-unknown-elf-ld
-OBJDUMP = riscv32-unknown-elf-objdump
-OBJCOPY = riscv32-unknown-elf-objcopy
+CC = /home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/riscv-gnu-toolchain/output/bin/riscv32-unknown-elf-gcc
+LD = /home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/riscv-gnu-toolchain/output/bin/riscv32-unknown-elf-ld
+OBJDUMP = /home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/riscv-gnu-toolchain/output/bin/riscv32-unknown-elf-objdump
+OBJCOPY = /home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/riscv-gnu-toolchain/output/bin/riscv32-unknown-elf-objcopy
 CFLAGS = -march=rv32imc_zicsr -mabi=ilp32 -mcmodel=medany \
          -Wall -fvisibility=hidden -ffreestanding \
          -nostartfiles -O2 -ggdb3 -I common/include
