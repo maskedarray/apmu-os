@@ -20,19 +20,18 @@ void delay_cycles(uint32_t cycles) {
     uint64_t end = start + cycles;
 
     while (get_cycles() < end) {
-        // Busy wait
+        asm volatile("nop");
     }
 }
 
 // Function to get the current time in microseconds
-uint64_t get_time(void) {
-    // Assuming a CPU frequency of F_CPU Hz
-    // Multiply by 1000000 to convert to microseconds
-    return get_cycles(); // Placeholder for actual frequency conversion
+uint64_t get_time_us(void) {
+
+    return get_cycles()/((uint64_t)(__APMU_CLOCK_FREQ__/1000000)); // Placeholder for actual frequency conversion
 }
 
 // Function to create a delay in microseconds
-void delay_time(uint32_t microseconds, uint32_t cpu_frequency) {
-    uint32_t cycles = (cpu_frequency / 1000000) * microseconds; // Convert time to cycles
+void delay_time_us(uint32_t microseconds) {
+    uint32_t cycles = (__APMU_CLOCK_FREQ__ / 1000000) * microseconds; // Convert time to cycles
     delay_cycles(cycles); // Call delay_cycles with the calculated cycles
 }

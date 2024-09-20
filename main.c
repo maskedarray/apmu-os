@@ -7,19 +7,12 @@
 #include <debug_printf.h>
 #include <timer.h>
 
-void delay(unsigned int count) {
-    while (count--) {
-        // Simple delay loop
-        asm volatile("nop");
-    }
-}
-
 
 
 // Example event handler functions (replace with actual functions)
 void handle_event0() {
     // printf("Handler for event 0\n");
-    delay(100000000);
+    delay_time_us(1000000);
     uint64_t mcycle_value = get_cycles(); // Get the 64-bit cycle count
 
     // Buffer to hold the formatted string
