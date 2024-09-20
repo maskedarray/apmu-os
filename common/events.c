@@ -24,6 +24,9 @@ int register_event_handler(uint32_t bitmask, event_handler_t handler) {
 void process_events(uint32_t bitmap) {
     for (size_t i = 0; i < event_count; i++) {
         if (bitmap & event_map[i].bitmask) {    // Check rd agains bitmask of evey event added in event map
+        // This will call the handler even if any of the bits match
+        // We can modify this to if ((bitmap & event_map[i].bitmask) == event_map[i].bitmask) 
+        // to only call handler when all bits of bitmap and bitmask match
             event_map[i].handler();  // Call the handler
         }
     }

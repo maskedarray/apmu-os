@@ -1,13 +1,17 @@
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <events.h>
 #include <debug_printf.h>
+#include <timer.h>
+
 void delay(unsigned int count) {
     while (count--) {
         // Simple delay loop
         asm volatile("nop");
     }
 }
+
 
 
 // Example event handler functions (replace with actual functions)
@@ -20,17 +24,7 @@ void handle_event0() {
     char buffer[50]; // Ensure it's large enough to hold the string
 
     // Generate the string
-    sprintf(buffer, "Hello, RISC-V! %u\n", (mcycle_value>>32)); // Use %llu for 64-bit unsigned
-
-    // Print the result using printf
-    printf("%s", buffer);
-
-
-        int64_t a = 1234567890123456789LL;
-    int64_t b = 9876543210987654321LL;
-    int64_t result = a + b;
-
-    sprintf(buffer, "Hello, RISC-V! %lld\n", result); // Use %llu for 64-bit unsigned
+    sprintf(buffer, "Hello, RISC-V! %llu\n", mcycle_value); // Use %llu for 64-bit unsigned
 
     // Print the result using printf
     printf("%s", buffer);

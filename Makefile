@@ -2,11 +2,31 @@
 
 # Compiler and flags
 CC = riscv32-unknown-elf-gcc
+LD = riscv32-unknown-elf-ld
 OBJDUMP = riscv32-unknown-elf-objdump
 OBJCOPY = riscv32-unknown-elf-objcopy
-CFLAGS = -march=rv32imcb -mabi=ilp32 -mcmodel=medany \
+CFLAGS = -march=rv32imc_zicsr -mabi=ilp32 -mcmodel=medany \
          -Wall -fvisibility=hidden -ffreestanding \
-         -nostartfiles -O0 -ggdb3 -I common/include
+         -nostartfiles -O2 -ggdb3 -I common/include
+
+# CC = clang
+# OBJDUMP = llvm-objdump
+# OBJCOPY = llvm-objcopy
+# CFLAGS = --target=riscv32-unknown-elf --sysroot=/home/a26rahma/work/alsaqr/final_testing_mohamed/riscv-toolchains/downloaded/lowrisc-riscv32/riscv32-unknown-elf -L/home/a26rahma/work/alsaqr/final_testing_mohamed/riscv-toolchains/downloaded/lowrisc-riscv32/riscv32-unknown-elf/lib -march=rv32imc -mabi=ilp32 -mcmodel=medany \
+#          -Wall -fvisibility=hidden -ffreestanding \
+#          -nostartfiles -O0 -ggdb3 -I common/include -I /home/a26rahma/work/alsaqr/final_testing_mohamed/riscv-toolchains/downloaded/lowrisc-riscv32/riscv32-unknown-elf/include 
+
+
+# CC = clang
+# OBJDUMP = llvm-objdump
+# OBJCOPY = llvm-objcopy
+# CFLAGS = --target=riscv32-unknown-elf --gcc-toolchain=/home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/lowrisc-toolchain-gcc-rv32imcb-20230811-1/ -march=rv32imc -mabi=ilp32 -mcmodel=medany \
+#          -Wall -fvisibility=hidden -ffreestanding \
+#          -nostartfiles -O0 -ggdb3 -I common/include 
+
+
+
+
 
 # Source directory
 SRC_DIR = .

@@ -3,7 +3,7 @@
 
 // Function to add a new request object to the queue (producer)
 int put_request(void* req_ptr, uint32_t size, int reqnum) {
-    if (size == 0) return;
+    if (size == 0) return PUT_FAIL;
     uint32_t head = READ_MEM(HEAD_ADDR);  // Get current head pointer
     uint32_t next_free_addr = head;
     uint32_t tail = READ_MEM(TAIL_ADDR);
