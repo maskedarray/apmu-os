@@ -2,6 +2,8 @@
 
 # Compiler and flags
 CC = riscv32-unknown-elf-gcc
+OBJDUMP = riscv32-unknown-elf-objdump
+OBJCOPY = riscv32-unknown-elf-objcopy
 CFLAGS = -march=rv32imcb -mabi=ilp32 -mcmodel=medany \
          -Wall -fvisibility=hidden -ffreestanding \
          -nostartfiles -O0 -ggdb3 -I common/include
@@ -69,8 +71,8 @@ clean:
 	rm -rf $(BUILD_DIR)
 
 dump: $(TARGET)
-	riscv32-unknown-elf-objdump -d $(TARGET) > $(ASM_FILE_DISASM)
-	riscv32-unknown-elf-objcopy -O binary $(TARGET) $(BIN_FILE)
+	$(OBJDUMP) -d $(TARGET) > $(ASM_FILE_DISASM)
+	$(OBJCOPY) -O binary $(TARGET) $(BIN_FILE)
 
 generate-assembly: $(BUILD_DIR)
 	$(CC) $(CFLAGS) -S src/main.c -o $(BUILD_DIR)/main.S
