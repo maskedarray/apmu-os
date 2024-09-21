@@ -27,7 +27,7 @@ void process_events(uint32_t bitmap) {
         // This will call the handler even if any of the bits match
         // We can modify this to if ((bitmap & event_map[i].bitmask) == event_map[i].bitmask) 
         // to only call handler when all bits of bitmap and bitmask match
-            event_map[i].handler();  // Call the handler
+            event_map[i].handler(bitmap);  // Call the handler
         }
     }
 }

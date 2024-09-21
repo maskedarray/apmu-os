@@ -8,7 +8,7 @@
 #define MAX_EVENTS 10
 
 // Event handler function prototype
-typedef void (*event_handler_t)(void);
+typedef void (*event_handler_t)(uint32_t);
 
 // Struct to map bitmasks to handlers
 typedef struct {
