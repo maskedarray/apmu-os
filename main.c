@@ -6,7 +6,6 @@
 #include <events.h>
 #include <debug_printf.h>
 #include <timer.h>
-#include <component.h>
 #include <base_component.h>
 #include <queue_lib.h>
 #include <string.h>
