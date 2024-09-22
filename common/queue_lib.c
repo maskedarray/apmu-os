@@ -21,9 +21,7 @@ int put_request(void* req_ptr, uint32_t size, int reqnum) {
     // This loop will never be triggered if head points to object that is wrapped around.
     // This assumption if proven wrong will render the following logic faulty
     if (next_free_addr + total_size > QUEUE_SIZE + QUEUE_START_ADDR) {
-        if (reqnum > 1){
-            reqnum = 2;
-        }
+        
         // Calculate remaining space before wrapping around
         uint32_t space_before_wrap = (QUEUE_SIZE + QUEUE_START_ADDR) - next_free_addr;
         if (space_before_wrap > sizeof(request_t) + 1){
@@ -40,6 +38,7 @@ int put_request(void* req_ptr, uint32_t size, int reqnum) {
             req->next = 0; // No next request yet
             req->size = size;
             req->consumed = 0;
+            req->req_id = reqnum;
 
             // Copy part of the payload that fits before the wrap
             memcpy(req->payload, req_ptr, space_before_wrap - sizeof(request_t));
@@ -68,6 +67,7 @@ int put_request(void* req_ptr, uint32_t size, int reqnum) {
             req->next = 0; // No next request yet
             req->size = size;
             req->consumed = 0;
+            req->req_id = reqnum;
             space_before_wrap = 0;
             next_free_addr = QUEUE_START_ADDR;
             // // Copy part of the payload that fits before the wrap
@@ -91,15 +91,13 @@ int put_request(void* req_ptr, uint32_t size, int reqnum) {
         if ((next_free_addr +sizeof(request_t) + size) >= tail){
             return PUT_FAIL;
         }
-        if (reqnum > 1){
-            reqnum = 2;
-        }
+        
                 // Create new request at next_free_addr
         request_t* req = (request_t*)next_free_addr;
         req->next = 0; // No next request yet
         req->size = size;
         req->consumed = 0;
-        
+        req->req_id = reqnum;
         // Copy the payload
         memcpy(req->payload, req_ptr, size);
         
@@ -115,7 +113,7 @@ int put_request(void* req_ptr, uint32_t size, int reqnum) {
         req->next = 0; // No next request yet
         req->size = size;
         req->consumed = 0;
-        
+        req->req_id = reqnum;
         // Copy the payload
         memcpy(req->payload, req_ptr, size);
         

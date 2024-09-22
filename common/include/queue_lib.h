@@ -7,7 +7,7 @@
 #define HEAD_ADDR 0x82000000  // Address of head pointer (producer)
 #define TAIL_ADDR 0x82000004  // Address of tail pointer (consumer)
 #define QUEUE_START_ADDR 0x82000008  // Start of the queue
-#define QUEUE_SIZE 0x150  // Define the queue size
+#define QUEUE_SIZE 0x1000  // Define the queue size
 
 #include <stdint.h>
 #include <string.h>
@@ -22,6 +22,7 @@ typedef struct request {
     uint32_t next;     // Pointer to next element in the queue
     uint32_t size;     // Size of the payload
     uint32_t consumed;
+    uint32_t req_id;
     char payload[];    // Payload of variable size
 } request_t;
 
