@@ -20,7 +20,8 @@ typedef struct {
 
 void init_event_handlers();
 void process_events(uint32_t bitmap);
-int register_event_handler(uint32_t bitmask, event_handler_t handler);
+int register_event_handler(uint32_t id, uint32_t bitmask, event_handler_t handler);
+int unregister_event_handler(uint32_t id);
 
 
 
