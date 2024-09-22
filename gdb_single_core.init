@@ -1,0 +1,6 @@
+target remote:1234
+file build/output.elf
+set confirm off
+set pagination off
+break main
+c
