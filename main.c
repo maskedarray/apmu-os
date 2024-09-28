@@ -72,7 +72,30 @@ int main() {
     // Print the result using printf
     printf("PMU Core Started!\n");
 
+#ifdef TEST_DUMMY_DYNAMIC_FUNCTIONS
+    // Following is the test for dynamic function loading
+    // Separate bin files are needed to be loaded through restore file.bin binary <addr>
+    // Currently the decided address is 0x81000000 for text containing the four functions
+    // at addresses hardcoded below. And for the respective data the address is 0x81800000
+    // Currently the files are included in git
+    typedef int (*func_ptr_t)(void);
+    func_ptr_t my_function = (func_ptr_t)0x81000000;
+    int return_value = my_function();
+    printf("Return value: %d\n", return_value);     // value is 914
+
+    my_function = (func_ptr_t)0x81000098;
+    return_value = my_function();
+    printf("Return value: %d\n", return_value);     // value is 2506294
     
+    my_function = (func_ptr_t)0x81000144;
+    return_value = my_function();
+    printf("Return value: %d\n", return_value);     // value is 1856
+
+    my_function = (func_ptr_t)0x810001f8;
+    return_value = my_function();
+    printf("Return value: %d\n", return_value);     // value is 10256
+    // End code for testing functions dynamically
+#endif
 
     base_component_init();
 
