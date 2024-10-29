@@ -17,6 +17,29 @@ void base_component_exit(){
 }
 
 
+// Register request handlers so event handler can call appropriate request handler
+// according to id.
+void base_component_request_register(uint32_t id, void (*handler)(uint32_t* req)){
+    if (id >= MAX_REQUEST_HANDLERS) {
+        printf("Error: ID %d is out of range.\n", id);
+        return;
+    }
+    request_handlers[id] = handler;
+    printf("Registered handler for ID %d.\n", id);
+
+}
+
+void base_component_request_unregister(uint32_t id){
+    if (id >= MAX_REQUEST_HANDLERS) {
+        printf("Error: ID %d is out of range.\n", id);
+        return;
+    }
+    request_handlers[id] = NULL;
+    printf("Unregistered handler for ID %d.\n", id);
+
+}
+
+
 
 //below 2 functions are internal to the library
 void base_component_component_installer(request_t* req){
@@ -96,25 +119,4 @@ void base_component_event_handler(uint32_t bitmap){
     req->consumed=1;
 }
 
-// Register request handlers so event handler can call appropriate request handler
-// according to id.
-void base_component_request_register(uint32_t id, void (*handler)(uint32_t* req)){
-    if (id >= MAX_REQUEST_HANDLERS) {
-        printf("Error: ID %d is out of range.\n", id);
-        return;
-    }
-    request_handlers[id] = handler;
-    printf("Registered handler for ID %d.\n", id);
-
-}
-
-void base_component_request_unregister(uint32_t id){
-    if (id >= MAX_REQUEST_HANDLERS) {
-        printf("Error: ID %d is out of range.\n", id);
-        return;
-    }
-    request_handlers[id] = NULL;
-    printf("Unregistered handler for ID %d.\n", id);
-
-}
 
