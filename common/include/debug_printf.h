@@ -8,6 +8,7 @@
 #define printf debug_printf
 
 int debug_printf(const char *fmt, ...);
+void write_to_memory(unsigned int value);
 
 
 #endif

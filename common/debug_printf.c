@@ -1,16 +1,26 @@
 #include "debug_printf.h"
+#include <common_defines.h>
 
-
-volatile char *uart = (volatile char *)0x10000000;
-
-
-// Implement putchar to send data to UART
-int putchar(int ch) {
-    *uart = (char)ch;
-    return ch;
+void write_to_memory(unsigned int value) {
+    asm volatile (
+        "li t0, 0x10427600\n"    // Load address into t0
+        "sw %0, 0(t0)\n"         // Store value into the memory location at t0
+        :                         // No output operands
+        : "r" (value)            // Input operand: 'value' will be placed into t1
+        : "t0"                    // Clobbered register
+    );
 }
 
-// Minimalistic printf implementation
+static volatile char *output_ptr = PRINT_START_ADDRESS;
+
+void mem_putchar(char c) {
+    // Ensure we don't exceed the memory limit
+    if (output_ptr <= PRINT_END_ADDRESS) {
+        *output_ptr = c;
+        output_ptr++;
+    }
+}
+
 int debug_printf(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -23,36 +33,39 @@ int debug_printf(const char *fmt, ...) {
                 case 'd': {  // Integer
                     int i = va_arg(args, int);
                     char buffer[10];
-                    char *b = buffer + sizeof(buffer);
-                    *(--b) = '\0';
+                    char *b = buffer + sizeof(buffer) - 1;
+                    *b = '\0';
                     if (i == 0) {
                         *(--b) = '0';
                     } else {
+                        int is_negative = (i < 0);
+                        if (is_negative) i = -i;
                         while (i) {
                             *(--b) = '0' + (i % 10);
                             i /= 10;
                         }
+                        if (is_negative) *(--b) = '-';
                     }
-                    while (*b) putchar(*b++);
+                    while (*b) mem_putchar(*b++);
                     break;
                 }
                 case 'c': {  // Character
                     char c = (char)va_arg(args, int);
-                    putchar(c);
+                    mem_putchar(c);
                     break;
                 }
                 case 's': {  // String
                     const char *str = va_arg(args, const char*);
-                    while (*str) putchar(*str++);
+                    while (*str) mem_putchar(*str++);
                     break;
                 }
                 default:
-                    putchar('%');
-                    putchar(*p);
+                    mem_putchar('%');
+                    mem_putchar(*p);
                     break;
             }
         } else {
-            putchar(*p);
+            mem_putchar(*p);
         }
     }
 

@@ -4,9 +4,9 @@
 // Function to add a new request object to the queue (producer)
 int put_request(void* req_ptr, uint32_t size, int reqnum) {
     if (size == 0) return PUT_FAIL;
-    uint32_t head = READ_MEM(HEAD_ADDR);  // Get current head pointer
+    uint32_t head = READ_MEM(QUEUE_HEAD_ADDR);  // Get current head pointer
     uint32_t next_free_addr = head;
-    uint32_t tail = READ_MEM(TAIL_ADDR);
+    uint32_t tail = READ_MEM(QUEUE_TAIL_ADDR);
     if (((request_t*)head)->size != 0) { // If always taken except first initialization
         next_free_addr = head + sizeof(request_t) + ((request_t*)head)->size;
         if(next_free_addr >= (QUEUE_SIZE + QUEUE_START_ADDR)){       // current head points to a wraped around object
@@ -52,7 +52,7 @@ int put_request(void* req_ptr, uint32_t size, int reqnum) {
             request_t* last_req = (request_t*)head;
             last_req->next = next_free_addr;  // Link last request to new one
 
-            WRITE_MEM(HEAD_ADDR, next_free_addr);
+            WRITE_MEM(QUEUE_HEAD_ADDR, next_free_addr);
         } else{
             // Not enough space before wrap, check tail pointer
             // first condition should never be true That means that tail data has already been overwritten
@@ -81,7 +81,7 @@ int put_request(void* req_ptr, uint32_t size, int reqnum) {
             request_t* last_req = (request_t*)head;
             last_req->next = next_free_addr;  // Link last request to new one
 
-            WRITE_MEM(HEAD_ADDR, next_free_addr);
+            WRITE_MEM(QUEUE_HEAD_ADDR, next_free_addr);
         }
 
         
@@ -103,7 +103,7 @@ int put_request(void* req_ptr, uint32_t size, int reqnum) {
         
         request_t* last_req = (request_t*)head;
         last_req->next = next_free_addr;  // Link last request to new one
-        WRITE_MEM(HEAD_ADDR, next_free_addr);
+        WRITE_MEM(QUEUE_HEAD_ADDR, next_free_addr);
     } 
     else {
 
@@ -119,7 +119,7 @@ int put_request(void* req_ptr, uint32_t size, int reqnum) {
         
         request_t* last_req = (request_t*)head;
         last_req->next = next_free_addr;  // Link last request to new one
-        WRITE_MEM(HEAD_ADDR, next_free_addr);
+        WRITE_MEM(QUEUE_HEAD_ADDR, next_free_addr);
     }
     return PUT_SUCCESS;
 }
@@ -137,12 +137,12 @@ void* get_request(uint32_t* size_out) {
     // and will return NULL
     //
     //
-    // uint32_t tail = read_mem(TAIL_ADDR);  // Get current tail pointer
+    // uint32_t tail = read_mem(QUEUE_TAIL_ADDR);  // Get current tail pointer
     // if (tail == 0) return NULL;  // Not initialized yet
     //
     //
 
-    uint32_t tail = READ_MEM(TAIL_ADDR);  // Get current tail pointer
+    uint32_t tail = READ_MEM(QUEUE_TAIL_ADDR);  // Get current tail pointer
 
     request_t* req = (request_t*)tail;  // Get the current request
     if (req->consumed == 0 && req->size != 0){  // consumed and size will be zero for first request object only
@@ -157,7 +157,7 @@ void* get_request(uint32_t* size_out) {
     } else if (req->consumed == 1){       
         if (req->next != 0) {
             // TODO: it should return request pointer  in this path
-            WRITE_MEM(TAIL_ADDR, req->next);  // Move to the next request
+            WRITE_MEM(QUEUE_TAIL_ADDR, req->next);  // Move to the next request
         }
     } else {
         return NULL;
@@ -202,7 +202,7 @@ void consume_requests() {
                 request_payload->consumed = 1;
                 // Move the tail to the next request (or keep same if next = 0)
                 if (request_payload->next != 0) {
-                    WRITE_MEM(TAIL_ADDR, request_payload->next);  // Move to the next request
+                    WRITE_MEM(QUEUE_TAIL_ADDR, request_payload->next);  // Move to the next request
                 }
             } else {
 
@@ -219,7 +219,7 @@ void consume_requests() {
                 request_payload->consumed = 1;
                 // Move the tail to the next request (or keep same if next = 0)
                 if (request_payload->next != 0) {
-                    WRITE_MEM(TAIL_ADDR, request_payload->next);  // Move to the next request
+                    WRITE_MEM(QUEUE_TAIL_ADDR, request_payload->next);  // Move to the next request
                 }
             }
         }
