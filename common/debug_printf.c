@@ -3,7 +3,7 @@
 
 void write_to_memory(unsigned int value) {
     asm volatile (
-        "li t0, 0x10427600\n"    // Load address into t0
+        "li t0, 0x10427FFC\n"    // Load address into t0
         "sw %0, 0(t0)\n"         // Store value into the memory location at t0
         :                         // No output operands
         : "r" (value)            // Input operand: 'value' will be placed into t1
