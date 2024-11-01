@@ -1,21 +1,12 @@
 #ifndef QUEUE_LIB_H
 #define QUEUE_LIB_H
 
-#define PUT_SUCCESS 0
-#define PUT_FAIL 1
-
-#define HEAD_ADDR 0x82000000  // Address of head pointer (producer)
-#define TAIL_ADDR 0x82000004  // Address of tail pointer (consumer)
-#define QUEUE_START_ADDR 0x82000008  // Start of the queue
-#define QUEUE_SIZE 0x1000  // Define the queue size
-
 #include <stdint.h>
 #include <string.h>
+#include <common_defines.h>
 
-// Memory-mapped queue addresses
-#define HEAD_ADDR 0x82000000  // Address of head pointer (producer)
-#define TAIL_ADDR 0x82000004  // Address of tail pointer (consumer)
-#define QUEUE_START_ADDR 0x82000008  // Start of the queue
+#define PUT_SUCCESS 0
+#define PUT_FAIL 1
 
 // Request structure
 typedef struct request {

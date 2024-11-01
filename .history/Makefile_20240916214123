@@ -1,3 +1,0 @@
-
-all:
-	riscv64-unknown-elf-gcc -march=rv64ima -mabi=lp64 -nostartfiles -mcmodel=medany -T linker.ld -o hello.elf hello.c
