@@ -5,9 +5,9 @@ CC = /home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/riscv-gnu-toolchain/outpu
 LD = /home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/riscv-gnu-toolchain/output/bin/riscv32-unknown-elf-ld
 OBJDUMP = /home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/riscv-gnu-toolchain/output/bin/riscv32-unknown-elf-objdump
 OBJCOPY = /home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/riscv-gnu-toolchain/output/bin/riscv32-unknown-elf-objcopy
-CFLAGS = -march=rv32imc_zicsr -mabi=ilp32 -mcmodel=medany \
+CFLAGS = -march=rv32im_zicsr -mabi=ilp32 -mcmodel=medlow \
          -Wall -fvisibility=hidden -ffreestanding \
-         -nostartfiles -O2 -ggdb3 -I common/include
+         -nostartfiles -fno-unwind-tables -fno-exceptions -O2 -specs=nano.specs -lc -lnosys -Wl,--gc-sections -flto -I common/include
 
 # CC = clang
 # OBJDUMP = llvm-objdump
@@ -91,8 +91,13 @@ clean:
 	rm -rf $(BUILD_DIR)
 
 dump: $(TARGET)
-	$(OBJDUMP) -d $(TARGET) > $(ASM_FILE_DISASM)
+	$(OBJDUMP) -D $(TARGET) > $(ASM_FILE_DISASM)
 	$(OBJCOPY) -O binary $(TARGET) $(BIN_FILE)
+
+generate-bin-files: $(TARGET)
+	$(OBJCOPY) -O binary --only-section=.text $(TARGET) build/text_section.bin
+	$(OBJCOPY) -O binary --only-section=.data --only-section=.rodata --only-section=.bss $(TARGET) build/data_rodata_bss.bin
+
 
 generate-assembly: $(BUILD_DIR)
 	$(CC) $(CFLAGS) -S src/main.c -o $(BUILD_DIR)/main.S

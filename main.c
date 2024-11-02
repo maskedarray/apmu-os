@@ -2,7 +2,6 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <events.h>
 #include <debug_printf.h>
 #include <timer.h>
@@ -10,24 +9,15 @@
 #include <queue_lib.h>
 #include <string.h>
 
-int sim_events[] = {0b0100, 0b0010 , 0b0001, 0b0100, 0b0100, 0b0010, 0b0010, 0b0100, 0b0001, 0b0001, 0b0001, 0b0001, 0b0010};
+int sim_events[] = {0b0100, 0b0010 , 0b0001, 0b0010, 0b0100, 0b0010, 0b0010, 0b0010, 0b0001, 0b0001, 0b0001, 0b0001, 0b0010};
 int sim_event_counter = 0;
 int sim_event_max = 13;
 
 // Example event handler functions (replace with actual functions)
-void handle_event0() {
+void handle_event0(uint32_t bitmap) {
     // printf("Handler for event 0\n");
-    delay_time_us(1000000);
-    uint64_t mcycle_value = get_cycles(); // Get the 64-bit cycle count
-
-    // Buffer to hold the formatted string
-    char buffer[50]; // Ensure it's large enough to hold the string
-
-    // Generate the string
-    sprintf(buffer, "handler0: Hello, RISC-V! %llu\n", mcycle_value); // Use %llu for 64-bit unsigned
-
     // Print the result using printf
-    printf("%s", buffer);
+    printf("handler0: Hello, RISCV!\n");
     
     return;
     // Logic for handling event 0
@@ -41,37 +31,35 @@ typedef struct {
 // Example event handler functions (replace with actual functions)
 void handle_event3() {
     // printf("Handler for event 0\n");
-    delay_time_us(1000000);
-
-    // Buffer to hold the formatted string
-    char buffer[100]; // Ensure it's large enough to hold the string
-
-    // Generate the string
-    sprintf(buffer, "handler3: This is the event handler for component 3\n"); // Use %llu for 64-bit unsigned
-
-    // Print the result using printf
-    printf("%s", buffer);
+    // delay_time_us(1000000);
+    printf("handler3: This is the event handler for component 3\n");
     
     return;
     // Logic for handling event 0
 }
 
 void handle_request3(request_t * req){
-    printf("request_handler3: This is request handler for component 3\n");
+    componend3_request_t * received_req = (componend3_request_t *)req->payload; 
+    printf("Component 3 request handler size:%d addr:%d payload:%s\n", received_req->size,req->payload,received_req->payload);
+    // printf("request_handler3: This is request handler for component 3\n");
 }
 
 // Prototype for the wfp() function (returns 32-bit event register)
 uint32_t wfp(void){
-    return (sim_event_counter < sim_event_max)? sim_events[sim_event_counter++] : 0b0000;
+    if (sim_event_counter < sim_event_max) {
+        printf("sending event%d\n",sim_events[sim_event_counter]);
+        return sim_events[sim_event_counter++];
+    } else {
+        return 0b0000;
+    }
 }
-
-
 
 int main() {
     
     // Print the result using printf
-    printf("PMU Core Started!\n");
-
+    init_print_mem();
+    write_to_memory(0xabcd);
+    printf("PMU Core Started!%d\n", 735);
 #ifdef TEST_DUMMY_DYNAMIC_FUNCTIONS
     // Following is the test for dynamic function loading
     // Separate bin files are needed to be loaded through restore file.bin binary <addr>
@@ -98,9 +86,10 @@ int main() {
 #endif
 
     base_component_init();
-
-    WRITE_MEM(HEAD_ADDR, QUEUE_START_ADDR);
-    WRITE_MEM(TAIL_ADDR, QUEUE_START_ADDR);
+    
+    WRITE_MEM(QUEUE_HEAD_ADDR, QUEUE_START_ADDR);
+    WRITE_MEM(QUEUE_TAIL_ADDR, QUEUE_START_ADDR);
+    
 
     // generate request to install component with ID 3
     request_comp_installer_t new_req;
@@ -143,7 +132,10 @@ int main() {
         uint32_t bitmap = wfp();
         process_events(bitmap);
     }
-
+    // Below lines will not be executed ever
+    printf("finished running loop\n");
+    write_to_memory(0xefef);
+    while(1){}
     base_component_exit();// This should never be reached
     while (1);
     return 0;  // This should never be reached

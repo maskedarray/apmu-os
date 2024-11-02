@@ -26,26 +26,20 @@ OUTPUT_ARCH(riscv)
 
 /* Stack information variables */
 
-STACK_SIZE      = 0x400;
+STACK_SIZE      = 0x1000;   /* 4K */
 
 ENTRY(_start)
 
-/* Memory regions for Instruction and Data Memories */
-MEMORY
-{
-    ISPM (rx) : ORIGIN = 0x10425FFC, LENGTH = 0x1000  
-    DSPM (rw) : ORIGIN = 0x10427000, LENGTH = 0x1000  
-}
-
 SECTIONS
 {
+	. = 0x80000000;
     .text : {
         . = ALIGN(4);
 
         *(.text)
         *(.text.*)
         . = ALIGN(4);
-    } > ISPM
+    }  
 
     .rodata : {
         . = ALIGN(4);
@@ -55,7 +49,7 @@ SECTIONS
         *(.rodata);
         *(.rodata.*)
         . = ALIGN(4);
-    } > DSPM
+    } 
 
     .data : {
         . = ALIGN(4);
@@ -69,7 +63,7 @@ SECTIONS
         *(.data.*)
         . = ALIGN(4);
         _edata = .;
-    } > DSPM
+    } 
 
     .bss :
     {
@@ -83,7 +77,7 @@ SECTIONS
         *(COMMON)
         _bss_end = .;
         . = ALIGN(4);
-    } > DSPM
+    } 
 
 
     .stack (NOLOAD) : {
@@ -91,5 +85,5 @@ SECTIONS
         _stack_start = .;           
         . += STACK_SIZE;            
         _stack_end = .;            
-    } > DSPM
+    } 
 }

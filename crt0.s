@@ -29,7 +29,8 @@ _start:
 
 reset_handler:
   /* set all registers to zero */
-  nop
+  .word 0x00000033
+  .word 0x00000033
   mv  x1, x0
   mv  x2, x1
   mv  x3, x1
