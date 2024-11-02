@@ -158,6 +158,7 @@ void* get_request(uint32_t* size_out) {
         if (req->next != 0) {
             // TODO: it should return request pointer  in this path
             WRITE_MEM(QUEUE_TAIL_ADDR, req->next);  // Move to the next request
+            get_request(size_out);
         }
     } else {
         return NULL;

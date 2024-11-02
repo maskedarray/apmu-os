@@ -11,10 +11,19 @@ void write_to_memory(unsigned int value) {
     );
 }
 
-static volatile char *output_ptr = PRINT_START_ADDRESS;
+void init_print_mem() {
+    volatile char *ptr = PRINT_START_ADDRESS;
+    while (ptr <= PRINT_END_ADDRESS) {
+        *ptr = '\0';
+        ptr++;
+    }
+}
+
+
 
 void mem_putchar(char c) {
     // Ensure we don't exceed the memory limit
+    static volatile char *output_ptr = PRINT_START_ADDRESS;
     if (output_ptr <= PRINT_END_ADDRESS) {
         *output_ptr = c;
         output_ptr++;
