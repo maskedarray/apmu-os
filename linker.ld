@@ -26,7 +26,7 @@ OUTPUT_ARCH(riscv)
 
 /* Stack information variables */
 
-STACK_SIZE      = 0x400;
+STACK_SIZE      = 0x300;
 
 ENTRY(_start)
 

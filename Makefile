@@ -14,7 +14,7 @@ OBJDUMP = /home/a26rahma/work/alsaqr/llvm-testing/llvm-project/build/bin/llvm-ob
 OBJCOPY = /home/a26rahma/work/alsaqr/llvm-testing/llvm-project/build/bin/llvm-objcopy
 CFLAGS = --target=riscv32-unknown-elf --sysroot=/home/a26rahma/work/alsaqr/final_testing_mohamed/riscv-toolchains/downloaded/lowrisc-riscv32/riscv32-unknown-elf -L/home/a26rahma/work/alsaqr/final_testing_mohamed/riscv-toolchains/downloaded/lowrisc-riscv32/riscv32-unknown-elf/lib -march=rv32im_zicsr -mabi=ilp32 -mcmodel=medlow \
          -Wall -fvisibility=hidden -ffreestanding \
-         -nostartfiles -O2 -nostdlib -flto -specs=nano.specs -I common/include -I /home/a26rahma/work/alsaqr/final_testing_mohamed/riscv-toolchains/downloaded/lowrisc-riscv32/riscv32-unknown-elf/include -I common/include -I demos/include
+         -O2 -nostdlib -flto -I common/include -I /home/a26rahma/work/alsaqr/final_testing_mohamed/riscv-toolchains/downloaded/lowrisc-riscv32/riscv32-unknown-elf/include -I common/include -I demos/include
 
 
 # CC = clang

@@ -3,7 +3,7 @@
 #include <pmu_hw_desc.h>
 #include <debug_printf.h>
 
-#define LATENCY_REG_STRUCT_OFFSET  0x900
+#define LATENCY_REG_STRUCT_OFFSET  0xC00
 #define DEBUG_HALT      0x200
 #define DEBUG_RESUME    0x208
 
@@ -48,7 +48,6 @@ void latency_regulation() {
     volatile int unsigned current_lat = 0;
     volatile int unsigned target_lat  = 0;
 
-    int unsigned zero        = 0;
     int unsigned core_idx    = 0;   // Used to loop over non-CUA cores.
     int unsigned counter_idx = 0;   // Used to loop over PMU counters.
 
@@ -91,7 +90,8 @@ void latency_regulation() {
         counter_read(cnt_read_lat, counter_idx);
 
         current_lat = cnt_read_lat & 0x7FFFFFFF;
-        target_lat  = cnt_n_read * target_avg_lat;
+        current_lat = current_lat << 2;     // Multiply by 4
+        target_lat  = cnt_n_read * target_avg_lat;  // avg_lat is x 4
        
         lat_reg->cnt_n_read = cnt_n_read;
         lat_reg->current_lat = current_lat;
