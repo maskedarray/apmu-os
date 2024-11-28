@@ -14,12 +14,12 @@ typedef void (*event_handler_t)(uint32_t);
 typedef struct {
     uint32_t bitmask;
     event_handler_t handler;
-} event_map_t;
+} event_obj_t;
 
 
 
 void init_event_handlers();
-void process_events(uint32_t bitmap);
+void process_events(uint32_t bitmask);
 int register_event_handler(uint32_t id, uint32_t bitmask, event_handler_t handler);
 int unregister_event_handler(uint32_t id);
 
