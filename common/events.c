@@ -1,5 +1,7 @@
 #include <events.h>
-
+#include <common_defines.h>
+#include <debug_printf.h>
+#include <timer.h>
 // Global event map
 event_obj_t event_list[MAX_EVENTS];
 size_t event_count = 0;  // Keeps track of the number of registered events
@@ -39,6 +41,8 @@ void process_events(uint32_t bitmask) {
         // This will call the handler even if any of the bits match
         // We can modify this to if ((bitmask & event_list[i].bitmask) == event_list[i].bitmask) 
         // to only call handler when all bits of bitmask and bitmask match
+            time_end = get_cycles_lo();
+            printf("base component request handler call time: %d\n", time_end - time_start);
             event_list[i].handler(bitmask);  // Call the handler
         }
     }

@@ -7,6 +7,7 @@
 
 // Function to get the current cycle count
 uint64_t get_cycles(void);
+uint32_t get_cycles_lo(void);
 
 // Function to create a delay in cycles
 void delay_cycles(uint32_t cycles);

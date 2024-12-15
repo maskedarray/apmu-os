@@ -1,7 +1,8 @@
 #include <base_component.h>
 #include <queue_lib.h>
 #include <events.h>
-
+#include <common_defines.h>
+#include <timer.h>
 
 
 
@@ -25,7 +26,7 @@ void base_component_request_register(uint32_t id, void (*handler)(uint32_t* req)
         return;
     }
     request_handlers[id] = handler;
-    printf("Registered handler for ID %d.\n", id);
+    // printf("Registered handler for ID %d.\n", id);
 
 }
 
@@ -35,7 +36,7 @@ void base_component_request_unregister(uint32_t id){
         return;
     }
     request_handlers[id] = NULL;
-    printf("Unregistered handler for ID %d.\n", id);
+    // printf("Unregistered handler for ID %d.\n", id);
 
 }
 
@@ -59,7 +60,7 @@ void base_component_component_installer(request_t* req){
     register_event_handler(req_comp_install->id, req_comp_install->bitmask, req_comp_install->event_handler);
 
     base_component_request_register(req_comp_install->id, req_comp_install->request_handler);
-    printf("Successfully installed new component\n");
+    // printf("Successfully installed new component\n");
 }
 
 void base_component_component_uninstaller(request_t* req){
@@ -91,7 +92,7 @@ void base_component_component_uninstaller(request_t* req){
 void base_component_event_handler(uint32_t bitmap){
     uint32_t req_size = 0;
     request_t* req = get_request(&req_size);  // Get the request (req contains the ID)
-    
+
     if (req == NULL || req_size == 0) {
         printf("No request found or invalid request size.\n");
         return;
@@ -116,7 +117,8 @@ void base_component_event_handler(uint32_t bitmap){
         printf("No handler registered for ID %d.\n", id);
         return;
     }
-    req->consumed=1;
+    // req->consumed=1;
+    get_request_pop();
 }
 
 

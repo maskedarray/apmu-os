@@ -14,6 +14,16 @@ uint64_t get_cycles(void) {
     return ((uint64_t)high << 32) | low;  // Combine high and low parts
 }
 
+
+uint32_t get_cycles_lo(void) {
+    uint32_t low;
+    asm volatile (
+        "csrr %0, mcycle\n"
+        : "=r" (low)
+    );
+    return low;  
+}
+
 // Function to create a delay in cycles
 void delay_cycles(uint32_t cycles) {
     uint64_t start = get_cycles();

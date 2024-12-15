@@ -1,10 +1,12 @@
 #include "queue_lib.h"
+#include "debug_printf.h"
 
 
+volatile uint32_t global_next_free_addr;
 // Function to add a new request object to the queue (producer)
-int put_request(void* req_ptr, uint32_t size, int reqnum) {
+uint32_t put_request(void* req_ptr, uint32_t size, int reqnum) {
     if (size == 0) return PUT_FAIL;
-    uint32_t head = READ_MEM(QUEUE_HEAD_ADDR);  // Get current head pointer
+    volatile uint32_t head = READ_MEM(QUEUE_HEAD_ADDR);  // Get current head pointer
     uint32_t next_free_addr = head;
     uint32_t tail = READ_MEM(QUEUE_TAIL_ADDR);
     if (((request_t*)head)->size != 0) { // If always taken except first initialization
@@ -64,7 +66,7 @@ int put_request(void* req_ptr, uint32_t size, int reqnum) {
             }
 
             // Create new request at next_free_addr
-            request_t* req = (request_t*)QUEUE_START_ADDR;
+            volatile request_t* req = (request_t*)QUEUE_START_ADDR;
             req->next = 0; // No next request yet
             req->size = size;
             req->consumed = 0;
@@ -78,11 +80,16 @@ int put_request(void* req_ptr, uint32_t size, int reqnum) {
             uint32_t remaining_size = size;
 
             uint32_t payload_addr = QUEUE_START_ADDR + sizeof(request_t);  // Wrap to the start of the queue
-            memcpy((void*)payload_addr, req_ptr, remaining_size);
-            request_t* last_req = (request_t*)head;
-            last_req->next = next_free_addr;  // Link last request to new one
+            
+            // todo: split: Throw the payload address out to make this function into a get buffer function
+            global_next_free_addr = next_free_addr;
+            return payload_addr;
+            // memcpy((void*)payload_addr, req_ptr, remaining_size);
+            // todo: split: Throw the below in push
+            // request_t* last_req = (request_t*)head;
+            // last_req->next = next_free_addr;  // Link last request to new one
 
-            WRITE_MEM(QUEUE_HEAD_ADDR, next_free_addr);
+            // WRITE_MEM(QUEUE_HEAD_ADDR, next_free_addr);
         }
 
         
@@ -90,41 +97,55 @@ int put_request(void* req_ptr, uint32_t size, int reqnum) {
 
     } else if (head < tail){
         if ((next_free_addr +sizeof(request_t) + size) >= tail){
-            return PUT_FAIL;
+            return (uint32_t)NULL;
         }
         
                 // Create new request at next_free_addr
-        request_t* req = (request_t*)next_free_addr;
+        volatile request_t* req = (volatile request_t*)next_free_addr;
         req->next = 0; // No next request yet
         req->size = size;
         req->consumed = 0;
         req->req_id = reqnum;
+
+        // todo: split: throw the req->payload into return value of get buffer
         // Copy the payload
-        memcpy(req->payload, req_ptr, size);
-        
-        request_t* last_req = (request_t*)head;
-        last_req->next = next_free_addr;  // Link last request to new one
-        WRITE_MEM(QUEUE_HEAD_ADDR, next_free_addr);
+        global_next_free_addr = next_free_addr;
+        return (uint32_t)req->payload;
+        // memcpy(req->payload, req_ptr, size);
+        // todo: split: throw the below lines in push buffer
+        // request_t* last_req = (request_t*)head;
+        // last_req->next = next_free_addr;  // Link last request to new one
+        // WRITE_MEM(QUEUE_HEAD_ADDR, next_free_addr);
     } 
     else {
 
-    
         // Create new request at next_free_addr
-        request_t* req = (request_t*)next_free_addr;
+        volatile request_t* req = (volatile request_t*)next_free_addr;
         req->next = 0; // No next request yet
         req->size = size;
         req->consumed = 0;
         req->req_id = reqnum;
+        // todo: split: throw the req->payload into return value of get buffer
         // Copy the payload
-        memcpy(req->payload, req_ptr, size);
-        
-        request_t* last_req = (request_t*)head;
-        last_req->next = next_free_addr;  // Link last request to new one
-        WRITE_MEM(QUEUE_HEAD_ADDR, next_free_addr);
+        global_next_free_addr = next_free_addr;
+
+        return (uint32_t)req->payload;
+        // memcpy(req->payload, req_ptr, size);
+        // todo: split: throw the below lines in push function
+        // request_t* last_req = (request_t*)head;
+        // last_req->next = next_free_addr;  // Link last request to new one
+        // WRITE_MEM(QUEUE_HEAD_ADDR, next_free_addr);
     }
-    return PUT_SUCCESS;
+    
 }
 
+
+void put_request_push(){
+    uint32_t head = READ_MEM(QUEUE_HEAD_ADDR); 
+    volatile request_t* last_req = (volatile request_t*)head;
+    last_req->next = global_next_free_addr;  // Link last request to new one
+    WRITE_MEM(QUEUE_HEAD_ADDR, global_next_free_addr);
+}
 
 
 // Function to get the next request (consumer)
@@ -142,12 +163,13 @@ void* get_request(uint32_t* size_out) {
     // if (tail == 0) return NULL;  // Not initialized yet
     //
     //
-
+    // todo: split: this is a get buffer function
     uint32_t tail = READ_MEM(QUEUE_TAIL_ADDR);  // Get current tail pointer
 
-    request_t* req = (request_t*)tail;  // Get the current request
+    volatile request_t* req = (volatile request_t*)tail;  // Get the current request
     if (req->consumed == 0 && req->size != 0){  // consumed and size will be zero for first request object only
         // Extract the payload size
+        // printf("this is get\ %dn", (uint32_t)req);
         *size_out = req->size;
         
         
@@ -155,18 +177,29 @@ void* get_request(uint32_t* size_out) {
         
         // Return pointer to the request
         return req;
-    } else if (req->consumed == 1){       
+    } else if (req->consumed == 1 && (READ_MEM(QUEUE_HEAD_ADDR) != tail)){       
         if (req->next != 0) {
             // TODO: it should return request pointer  in this path
             WRITE_MEM(QUEUE_TAIL_ADDR, req->next);  // Move to the next request
-            get_request(size_out);
+            return get_request(size_out);
         }
     } else {
         return NULL;
     }
 }
 
-
+// todo: split: make a consume buffer function
+// In the consume buffer function, take a pointer to the request object and 
+// write to the tail address the request->next
+void get_request_pop(){
+    uint32_t tail = READ_MEM(QUEUE_TAIL_ADDR);
+    volatile request_t* req = (volatile request_t*)tail; 
+    req->consumed = 1;
+    // Move the tail to the next request (or keep same if next = 0)
+    if (req->next != 0) {
+        WRITE_MEM(QUEUE_TAIL_ADDR, req->next);  // Move to the next request
+    }
+}
 
 void consume_requests() {
     // UART address for printing messages

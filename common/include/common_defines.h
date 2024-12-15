@@ -1,5 +1,9 @@
 #ifndef __COMMON_DEFINES_H__
 #define __COMMON_DEFINES_H__
+#include <stdint.h>
+
+extern volatile uint32_t time_start;
+extern volatile uint32_t time_end;
 
 // Macros for 32-bit read-write to memory address.
 #define read_32b(addr)         (*(volatile int *)(long)(addr))
