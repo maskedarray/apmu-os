@@ -24,7 +24,8 @@ int put_request(void* req_ptr, uint32_t size, int reqnum) {
         
         // Calculate remaining space before wrapping around
         uint32_t space_before_wrap = (QUEUE_SIZE + QUEUE_START_ADDR) - next_free_addr;
-        if (space_before_wrap > sizeof(request_t) + 1){
+        // if (space_before_wrap > sizeof(request_t) + 1){         // Removing support for wrapped objects, this if should never be triggered.
+        if(0){
             // Not enough space before wrap, check tail pointer
             // first condition should never be true That means that tail data has already been overwritten
             uint32_t end_addr = QUEUE_START_ADDR + total_size - space_before_wrap;
