@@ -123,18 +123,18 @@ qemu-single-core-debug: clean all
 	qemu-system-riscv32 -nographic -machine virt -bios none -kernel build/output.elf -S -s
 
 
-TARGET_CORE0 = $(BUILD_DIR)/core0/output0.elf
-TARGET_CORE1 = $(BUILD_DIR)/core1/output1.elf
+TARGET_CORE0 = $(BUILD_DIR)/qemu_sim/core0/output0.elf
+TARGET_CORE1 = $(BUILD_DIR)/qemu_sim/core1/output1.elf
 
 # Core 0 target
 core0: $(TARGET_CORE0)
 $(TARGET_CORE0): $(BUILD_DIR)
-	make -C core0 all
+	make -C qemu_sim/core0 all
 
 # Core 1 target
 core1: $(TARGET_CORE1)
 $(TARGET_CORE1): $(BUILD_DIR)
-	make -C core1 all
+	make -C qemu_sim/core1 all
 
 qemu-multicore: clean core0 core1
 	qemu-system-riscv32 \
