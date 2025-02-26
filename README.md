@@ -1,3 +1,5 @@
+# Baremetal OS for Advanced Performance Monitoring Unit
+
 This project is a WIP.
 
 To build this a the custom LLVM port for APMU needs to be compiled which is available at: https://github.com/maskedarray/llvm-project/tree/rv-apmu-sw/
