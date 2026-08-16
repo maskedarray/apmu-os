@@ -7,7 +7,7 @@ To build this a the custom LLVM port for APMU needs to be compiled which is avai
 The compilation steps, although summarized in the repository, follow typical LLVM compilation workflow.
 
 Asdditionally some libraries (libc) and headers need to be included from GCC installation. Following are the details:
-1. RISC-V GNU toolchain needs to be downloaded from: https://github.com/riscv-collab/riscv-gnu-toolchain. Following configuration should be used: `./configure --prefix=/your/install/dir --with-arch=rv32imcb --with-abi=ilp32 --enable-multilib` and then `make` the toolchain.
+1. RISC-V GNU toolchain needs to be downloaded from: https://github.com/riscv-collab/riscv-gnu-toolchain. Checkout to tag: 2024.11.22. Following configuration should be used: `./configure --prefix=/your/install/dir --with-arch=rv32imcb --with-abi=ilp32 --enable-multilib` and then `make` the toolchain.
 2. Additionally the toolchain from lowrisc: `lowrisc-toolchain-rv32imcb-20230811-1` needs to be downloaded from https://github.com/lowRISC/lowrisc-toolchains/releases/tag/20230811-1.
 
 TODO: only one toolchain should be needed to suffice for the headers and newlib-nano. Need to remove redundancy and check if everything builds fine.
