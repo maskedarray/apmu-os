@@ -1,26 +1,62 @@
 # Makefile for RISC-V ELF compilation and linking
 
+# ============================================================================
+# Toolchain locations — MUST be set by the user (environment or command line).
+#
+# Examples:
+#   export LLVM_BIN=/home/a26rahma/work/alsaqr/llvm-testing/llvm-project/build/bin
+#   export RISCV_SYSROOT=/home/a26rahma/work/alsaqr/final_testing_mohamed/riscv-toolchains/downloaded/lowrisc-riscv32/riscv32-unknown-elf
+#   export NEWLIB_BUILD=/home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/riscv-gnu-toolchain/build-newlib-nano/riscv32-unknown-elf/newlib
+#   export LIBGCC_A=/home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/riscv-gnu-toolchain/output/lib/gcc/riscv32-unknown-elf/13.2.0/libgcc.a
+#
+# Or per-invocation:
+#   make LLVM_BIN=... RISCV_SYSROOT=... NEWLIB_BUILD=... LIBGCC_A=...
+# ============================================================================
+LLVM_BIN      ?=
+RISCV_SYSROOT ?=
+NEWLIB_BUILD  ?=
+LIBGCC_A      ?=
+
+# Fail early with a clear message if any required variable is missing
+# (skipped for `make clean`)
+ifneq ($(MAKECMDGOALS),clean)
+ifeq ($(strip $(LLVM_BIN)),)
+$(error LLVM_BIN is not set. Point it at your LLVM build bin dir, e.g. .../llvm-project/build/bin)
+endif
+ifeq ($(strip $(RISCV_SYSROOT)),)
+$(error RISCV_SYSROOT is not set. Point it at your riscv32-unknown-elf sysroot)
+endif
+ifeq ($(strip $(NEWLIB_BUILD)),)
+$(error NEWLIB_BUILD is not set. Point it at .../build-newlib-nano/riscv32-unknown-elf/newlib)
+endif
+ifeq ($(strip $(LIBGCC_A)),)
+$(error LIBGCC_A is not set. Point it at the full path of libgcc.a)
+endif
+endif
+
 # Compiler and flags
-# CC = /home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/riscv-gnu-toolchain/output/bin/riscv32-unknown-elf-gcc
-# LD = /home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/riscv-gnu-toolchain/output/bin/riscv32-unknown-elf-ld
-# OBJDUMP = /home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/riscv-gnu-toolchain/output/bin/riscv32-unknown-elf-objdump
-# OBJCOPY = /home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/riscv-gnu-toolchain/output/bin/riscv32-unknown-elf-objcopy
+# --- GCC alternative (set RISCV_GCC_BIN to the GCC toolchain bin dir) ---
+# CC = $(RISCV_GCC_BIN)/riscv32-unknown-elf-gcc
+# LD = $(RISCV_GCC_BIN)/riscv32-unknown-elf-ld
+# OBJDUMP = $(RISCV_GCC_BIN)/riscv32-unknown-elf-objdump
+# OBJCOPY = $(RISCV_GCC_BIN)/riscv32-unknown-elf-objcopy
 # CFLAGS = -march=rv32im_zicsr -mabi=ilp32 -mcmodel=medlow \
 #          -Wall -fvisibility=hidden -ffreestanding \
 #          -nostartfiles -O2 -specs=nano.specs -Wl,--gc-sections -flto -I common/include
 
-CC = /home/a26rahma/work/alsaqr/llvm-testing/llvm-project/build/bin/clang
-OBJDUMP = /home/a26rahma/work/alsaqr/llvm-testing/llvm-project/build/bin/llvm-objdump
-OBJCOPY = /home/a26rahma/work/alsaqr/llvm-testing/llvm-project/build/bin/llvm-objcopy
-CFLAGS = --target=riscv32-unknown-elf --sysroot=/home/a26rahma/work/alsaqr/final_testing_mohamed/riscv-toolchains/downloaded/lowrisc-riscv32/riscv32-unknown-elf -L/home/a26rahma/work/alsaqr/final_testing_mohamed/riscv-toolchains/downloaded/lowrisc-riscv32/riscv32-unknown-elf/lib -march=rv32im_zicsr -mabi=ilp32 -mcmodel=medlow \
+CC = $(LLVM_BIN)/clang
+OBJDUMP = $(LLVM_BIN)/llvm-objdump
+OBJCOPY = $(LLVM_BIN)/llvm-objcopy
+CFLAGS = --target=riscv32-unknown-elf --sysroot=$(RISCV_SYSROOT) -L$(RISCV_SYSROOT)/lib -march=rv32im_zicsr -mabi=ilp32 -mcmodel=medlow \
          -Wall -fvisibility=hidden -ffreestanding \
-         -O2 -nostdlib -flto -I common/include -I /home/a26rahma/work/alsaqr/final_testing_mohamed/riscv-toolchains/downloaded/lowrisc-riscv32/riscv32-unknown-elf/include -I common/include -I demos/include
+         -O2 -nostdlib -flto -I common/include -I $(RISCV_SYSROOT)/include -I common/include -I demos/include
 
 
+# --- Another alternative: system clang with a GCC toolchain (set RISCV_GCC_TOOLCHAIN) ---
 # CC = clang
 # OBJDUMP = llvm-objdump
 # OBJCOPY = llvm-objcopy
-# CFLAGS = --target=riscv32-unknown-elf --gcc-toolchain=/home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/lowrisc-toolchain-gcc-rv32imcb-20230811-1/ -march=rv32imc -mabi=ilp32 -mcmodel=medany \
+# CFLAGS = --target=riscv32-unknown-elf --gcc-toolchain=$(RISCV_GCC_TOOLCHAIN) -march=rv32imc -mabi=ilp32 -mcmodel=medany \
 #          -Wall -fvisibility=hidden -ffreestanding \
 #          -nostartfiles -O0 -ggdb3 -I common/include 
 
@@ -37,10 +73,10 @@ DEMOS_SRC_DIR = ./demos
 SRCS = $(SRC_DIR)/crt0.s $(SRC_DIR)/main.c $(wildcard $(COMMON_SRC_DIR)/*.c) $(wildcard $(DEMOS_SRC_DIR)/*.c)
 
 # Linker script
-CFLAGS += -I/home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/riscv-gnu-toolchain/build-newlib-nano/riscv32-unknown-elf/newlib/targ-include
+CFLAGS += -I$(NEWLIB_BUILD)/targ-include
 LDSCRIPT = $(SRC_DIR)/linker.ld
-LDFLAGS = -T $(LDSCRIPT) -L/home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/riscv-gnu-toolchain/build-newlib-nano/riscv32-unknown-elf/newlib -lnosys -lc 
-LDFLAGS += /home/a26rahma/work/alsaqr/llvm-testing/gcc-stuff/riscv-gnu-toolchain/output/lib/gcc/riscv32-unknown-elf/13.2.0/libgcc.a
+LDFLAGS = -T $(LDSCRIPT) -L$(NEWLIB_BUILD) -lnosys -lc 
+LDFLAGS += $(LIBGCC_A)
 
 # Build directory
 BUILD_DIR = build
@@ -149,4 +185,3 @@ qemu-multicore-debug: clean core0 core1
 		-machine virt -cpu rv32 -m 4G \
 		-smp 2 \
 		-bios none -device loader,file=build/core0/output0.elf,cpu-num=0 -device loader,file=build/core1/output1.elf,cpu-num=1 -S -s
-
