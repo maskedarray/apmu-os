@@ -3,11 +3,10 @@
 
 void write_to_memory(unsigned int value) {
     asm volatile (
-        "li t0, 0x10427FFC\n"    // Load address into t0
-        "sw %0, 0(t0)\n"         // Store value into the memory location at t0
+        "sw %0, 0(%1)\n"         // Store value into the scratch slot
         :                         // No output operands
-        : "r" (value)            // Input operand: 'value' will be placed into t1
-        : "t0"                    // Clobbered register
+        : "r" (value),           // Input operand: value to store
+          "r" (DEBUG_SCRATCH_ADDR)
     );
 }
 
