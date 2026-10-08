@@ -1,0 +1,87 @@
+site_name: APMU Software Specification
+site_description: apmu-os, the apmu kernel module, the kernel patches and the verified-component design
+docs_dir: src
+site_dir: site
+use_directory_urls: false   # the built site opens from the file system
+
+nav:
+  - Overview: index.md
+  - Background:
+      - The APMU hardware: background/hardware.md
+      - The system today: background/today.md
+  - Architecture:
+      - Target architecture: architecture/overview.md
+      - Security model: architecture/security.md
+      - Event scopes and context switches: architecture/scopes.md
+  - apmu-os (PE runtime):
+      - Runtime: apmu-os/runtime.md
+      - Host ABI: apmu-os/abi.md
+      - Components: apmu-os/components.md
+  - Linux module (apmu.ko):
+      - Module internals: linux/module.md
+      - Userspace API: linux/uapi.md
+      - eBPF to RV32 translator: linux/translator.md
+  - Kernel patches:
+      - Background and plan: kernel/index.md
+      - "P1: configuration": kernel/p1-config.md
+      - "P2: generic offload devices": kernel/p2-offload.md
+      - "P3: BPF_PROG_TYPE_APMU": kernel/p3-progtype.md
+      - "P4: scope hooks": kernel/p4-hooks.md
+  - Verification: verification.md
+  - Usage examples: examples.md
+  - Implementation plan: plan.md
+  - Reference:
+      - Source headers: reference/headers.md
+      - Glossary and sources: reference/glossary.md
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue grey
+      accent: teal
+      toggle: { icon: material/weather-night, name: Dark mode }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue grey
+      accent: teal
+      toggle: { icon: material/weather-sunny, name: Light mode }
+
+plugins:
+  - search
+  - offline     # search works when opened from file://
+
+extra_css:
+  - css/extra.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - def_list
+  - footnotes
+  - toc: { permalink: true }
+  - pymdownx.details
+  - pymdownx.highlight: { anchor_linenums: true }
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed: { alternate_style: true }
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  # Source files are included verbatim from the repositories, so the API
+  # reference cannot drift from the code. Paths are relative to the uw/
+  # checkout that holds apmu-os and alsaqr-software side by side.
+  - pymdownx.snippets:
+      base_path: ["../../.."]
+      check_paths: true

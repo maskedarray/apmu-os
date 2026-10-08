@@ -1,0 +1,13 @@
+/* Status pills: what exists versus what is specified. */
+.st { display: inline-block; font-size: .68rem; font-weight: 600; line-height: 1.6;
+      padding: 0 .5em; border-radius: 3px; vertical-align: middle; letter-spacing: .02em; }
+.st.impl { background: #2e7d3222; color: #2e7d32; }   /* implemented and tested */
+.st.dec  { background: #1565c022; color: #1565c0; }   /* decided, not implemented */
+.st.prop { background: #ef6c0022; color: #ef6c00; }   /* proposed, open to change */
+.st.open { background: #c6282822; color: #c62828; }   /* open question */
+[data-md-color-scheme="slate"] .st.impl { color: #81c784; }
+[data-md-color-scheme="slate"] .st.dec  { color: #90caf9; }
+[data-md-color-scheme="slate"] .st.prop { color: #ffb74d; }
+[data-md-color-scheme="slate"] .st.open { color: #ef9a9a; }
+.md-typeset table:not([class]) { font-size: .72rem; }
+.md-typeset .mermaid { text-align: center; }
