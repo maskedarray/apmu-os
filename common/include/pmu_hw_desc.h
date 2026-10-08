@@ -2,13 +2,17 @@
 #define __PMU_HW_DESC_H__
 
 // Macros for custom PMU core instructions.
-// Counter read: rd = cnt[idx] (bits 30:0)
+// Counter read: rd = the complete packed counter (pending, overflow, value).
 #define counter_read(rd, idx)       asm volatile ("cnt.rd\t%0,%1" : "=r" (rd) : "r" (idx))
 // Counter write: cnt[idx] = val. The assembler takes the value first (rs2, rs1).
 #define counter_write(idx, val)     asm volatile ("cnt.wr\t%1,%0" :: "r" (idx), "r" (val))
 // Wait for pending: blocks until a counter in mask is pending, fired = those counters.
 #define counter_wait_pending(fired, mask) \
     asm volatile ("cnt.wfp\t%0,%1" : "=r" (fired) : "r" (mask) : "memory")
+// Wait for overflow: blocks until a counter in mask has overflow set.
+// Unlike WFP, current hardware does not clear the observed overflow bit.
+#define counter_wait_overflow(fired, mask) \
+    asm volatile ("cnt.wfo\t%0,%1" : "=r" (fired) : "r" (mask) : "memory")
 
 
 // #############################################################################
