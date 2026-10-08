@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>APMU Isolation Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column (~70ch) with wide figures and tables breaking out to 1100px. Trust zones carry fixed semantic hues. */
+:root {
+  --bg: #f6f7f5; --surface: #ffffff; --fg: #1b2120; --muted: #5a6562; --line: #d8dedb;
+  --accent: #1f6f6a;
+  --z-user: #b5532a; --z-user-bg: #fbeee7;
+  --z-kernel: #1f6f6a; --z-kernel-bg: #e3f1ef;
+  --z-pe: #5b4fa3; --z-pe-bg: #ecebf7;
+  --z-hw: #56605d; --z-hw-bg: #eceeed;
+  --ok: #2f7a3d; --warn: #9a6a00; --bad: #b0352b;
+  --display: "Newsreader", Georgia, "Times New Roman", serif;
+  --body: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121615; --surface: #1a1f1e; --fg: #e4e9e7; --muted: #9aa6a2; --line: #2e3634;
+  --accent: #5fbfb6;
+  --z-user: #e8936b; --z-user-bg: #2e211b;
+  --z-kernel: #5fbfb6; --z-kernel-bg: #16292a;
+  --z-pe: #a99ced; --z-pe-bg: #23213a;
+  --z-hw: #a8b2ae; --z-hw-bg: #222826;
+  --ok: #6cc47c; --warn: #e0b04a; --bad: #ef7a6f;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121615; --surface: #1a1f1e; --fg: #e4e9e7; --muted: #9aa6a2; --line: #2e3634;
+  --accent: #5fbfb6;
+  --z-user: #e8936b; --z-user-bg: #2e211b;
+  --z-kernel: #5fbfb6; --z-kernel-bg: #16292a;
+  --z-pe: #a99ced; --z-pe-bg: #23213a;
+  --z-hw: #a8b2ae; --z-hw-bg: #222826;
+  --ok: #6cc47c; --warn: #e0b04a; --bad: #ef7a6f;
+  color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font: 16px/1.6 var(--body); padding-inline: 20px; padding-block: 40px 80px; }
+main { max-width: 1100px; margin: 0 auto; display: grid; gap: 0; }
+.col { max-width: 70ch; }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; text-wrap: balance; line-height: 1.2; margin: 0; }
+h1 { font-size: clamp(2rem, 4vw, 2.75rem); }
+h2 { font-size: 1.6rem; margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+h3 { font-size: 1.2rem; margin-top: 1.75rem; }
+p, ul, ol { margin: .75rem 0 0; }
+li + li { margin-top: .35rem; }
+code, .mono { font-family: var(--mono); font-size: .86em; }
+code { background: var(--z-hw-bg); padding: .08em .35em; border-radius: 3px; }
+.lede { font-size: 1.125rem; color: var(--muted); margin-top: 1rem; }
+.eyebrow { font: 500 .75rem/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.meta { margin-top: 1rem; font-size: .9rem; color: var(--muted); }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.note { border-left: 3px solid var(--accent); padding: .6rem 1rem; background: var(--surface); margin-top: 1rem; }
+.note.warn { border-color: var(--warn); }
+.tag { display: inline-block; font: 500 .72rem/1.5 var(--mono); padding: 0 .45em; border-radius: 3px; white-space: nowrap; }
+.tag.user { color: var(--z-user); background: var(--z-user-bg); }
+.tag.kernel { color: var(--z-kernel); background: var(--z-kernel-bg); }
+.tag.pe { color: var(--z-pe); background: var(--z-pe-bg); }
+.tag.hw { color: var(--z-hw); background: var(--z-hw-bg); }
+.tag.ok { color: var(--ok); background: var(--z-hw-bg); }
+.tag.gap { color: var(--bad); background: var(--z-hw-bg); }
+.tag.part { color: var(--warn); background: var(--z-hw-bg); }
+
+/* goals */
+.goals { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-top: 1.25rem; }
+.goal { background: var(--surface); border: 1px solid var(--line); padding: .9rem 1rem; min-width: 0; }
+.goal b { font-family: var(--mono); font-size: .8rem; color: var(--accent); display: block; }
+.goal h3 { margin: .2rem 0 0; font-size: 1.05rem; }
+.goal p { font-size: .92rem; margin-top: .35rem; }
+
+/* architecture stack */
+.stack-wrap { overflow-x: auto; margin-top: 1.5rem; }
+.stack { min-width: 760px; display: grid; gap: 0; font-size: .9rem; }
+.zone { padding: 14px 16px 16px; border: 1.5px solid; position: relative; }
+.zone + .zone { border-top-width: 0; }
+.zone > .zl { font: 600 .72rem/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; display: flex; justify-content: space-between; gap: 1rem; }
+.zone.user { border-color: var(--z-user); background: var(--z-user-bg); } .zone.user > .zl { color: var(--z-user); }
+.zone.kernel { border-color: var(--z-kernel); background: var(--z-kernel-bg); } .zone.kernel > .zl { color: var(--z-kernel); }
+.zone.pe { border-color: var(--z-pe); background: var(--z-pe-bg); } .zone.pe > .zl { color: var(--z-pe); }
+.zone.hw { border-color: var(--z-hw); background: var(--z-hw-bg); } .zone.hw > .zl { color: var(--z-hw); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.box { background: var(--surface); border: 1px solid var(--line); padding: 8px 10px; flex: 1 1 150px; min-width: 0; }
+.box b { display: block; font-weight: 600; }
+.box span { color: var(--muted); font-size: .82rem; line-height: 1.4; display: block; margin-top: 2px; }
+.box.evil { border-style: dashed; }
+.boundary { display: flex; align-items: center; gap: 10px; padding: 6px 16px; font: 500 .75rem/1.3 var(--mono); color: var(--fg); background: var(--bg); border-inline: 1.5px solid var(--line); }
+.boundary::before { content: ""; flex: 0 0 22px; height: 0; border-top: 2px dashed var(--bad); }
+.boundary em { color: var(--bad); font-style: normal; font-weight: 600; }
+
+/* tables */
+.tbl { overflow-x: auto; margin-top: 1.25rem; border: 1px solid var(--line); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: .88rem; min-width: 760px; }
+th, td { text-align: left; vertical-align: top; padding: .55rem .7rem; border-bottom: 1px solid var(--line); }
+th { font: 600 .74rem/1.3 var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); background: var(--bg); position: sticky; top: 0; }
+tr:last-child td { border-bottom: 0; }
+td:first-child { font-weight: 600; }
+td small { color: var(--muted); display: block; }
+
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 1.25rem; }
+.card { background: var(--surface); border: 1px solid var(--line); padding: 1rem 1.1rem; min-width: 0; }
+.card h3 { margin-top: 0; font-size: 1.1rem; }
+.card ul { padding-left: 1.1rem; font-size: .93rem; }
+
+pre.code { font-family: var(--mono); font-size: .8rem; line-height: 1.5; background: var(--surface); border: 1px solid var(--line); padding: .9rem 1rem; overflow-x: auto; margin-top: 1rem; }
+.mermaid-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); padding: 1rem; margin-top: 1.25rem; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: .75rem; font-size: .85rem; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+
+<main>
+<header class="col">
+  <div class="eyebrow">AlSaqr APMU · apmu.ko · apmu-os</div>
+  <h1>APMU isolation architecture</h1>
+  <p class="lede">The APMU sees events from every core and can act on the system. This design makes the kernel module the only party that turns that power into concrete hardware configuration, so a hostile application cannot use the APMU to read what it should not, disturb other applications, or reconfigure the SoC.</p>
+  <p class="meta">Proposal, 2026-10-07. <b>Decided:</b> counters belong to the kernel (section 4); components are eBPF programs checked by the kernel's own BPF verifier (section 7). Neither is implemented yet. Facts about the hardware are from the RTL (he-soc <code>es/quad-evu-standalone/OpenDRAM</code>) and the current module. What a component's own code may do is out of scope here and handled by separate verification work; this design fixes the interface that work plugs into.</p>
+</header>
+
+<section>
+<h2 class="col">1. What the APMU can do today</h2>
+<p class="col">Every capability below is reachable either by a host process that can write APMU registers, or by code running on the PE. Today the module is the only intended host writer, but nothing in the hardware stops PE code from doing any of it.</p>
+<div class="tbl"><table>
+<thead><tr><th>Capability</th><th>Mechanism (RTL)</th><th>Why it is sensitive</th></tr></thead>
+<tbody>
+<tr><td>Observe any core</td><td>32 counters, each with an event selector: port (1–4 CVA6 EVU of core 0–3, 5–8 core↔LLC, 9 LLC↔DRAM), source (initiating core), event; value/max/min/range ops on event info (e.g. latency)</td><td>Memory and pipeline activity of another core is a side channel into whatever runs there: other users, the kernel, other VMs.</td></tr>
+<tr><td>Read any counter from the PE</td><td><code>cnt.rd</code>, <code>cnt.wr</code>, <code>cnt.wfp</code> take any index 0–31; no per-component mask</td><td>One component can read or reset another's counters.</td></tr>
+<tr><td>Reconfigure counters from the PE</td><td>The PE data port reaches the APMU registers (event select, event info, budgets)</td><td>A component can retarget any counter, including ones another application relies on.</td></tr>
+<tr><td>Act outside the APMU</td><td>The PE's AXI master: on this bitstream a 256 B window at <code>0x10606000</code> (CVA6 EVU event configuration); other builds point it at DRAM. An IOPMP sits on this path when the SoC is built with <code>APMU_IOPMP</code>.</td><td>Changing which CVA6 events are exported affects every observer; a DRAM window would expose all physical memory.</td></tr>
+<tr><td>Interrupt the host</td><td>32 counter-overflow lines into the PLIC (sources 155+); MemGuard budgets with a global period</td><td>Overflow-driven regulation (throttling or halting cores) changes the behaviour of other cores.</td></tr>
+<tr><td>Hold shared state</td><td>One PE, one ISPM (4 KiB), one DSPM, one request and one response queue</td><td>Everything is shared: space, PE time, queue slots, and data left behind after a component goes away.</td></tr>
+</tbody></table></div>
+</section>
+
+<section>
+<h2 class="col">2. Threat model and goals</h2>
+<div class="col">
+<p><b>Trusted:</b> the Linux kernel and the apmu module, the apmu-os base image (loaded by the kernel), the hardware, and the administrator who sets policy.</p>
+<p><b>Untrusted:</b> every userspace process, whatever its uid, including several colluding processes and processes that fork, pass file descriptors, crash mid-call, or issue arbitrary ioctls with crafted arguments and objects.</p>
+<p><b>Out of scope (separate work):</b> whether a component's code does only what its manifest says. This design rejects code that touches resources it was not granted, using the kernel's BPF verifier plus APMU-specific checks, and states exactly what they must enforce (section 7). What a component does within its grants is left to that separate work.</p>
+</div>
+<div class="goals">
+  <div class="goal"><b>G1</b><h3>Confidentiality</h3><p>An application learns only events and data it is entitled to: its own cores, or the whole system if it holds the privilege for that.</p></div>
+  <div class="goal"><b>G2</b><h3>Integrity</h3><p>No application can alter another's components, counters, messages or results.</p></div>
+  <div class="goal"><b>G3</b><h3>Fair availability</h3><p>No application can exhaust slots, memory, counters, queue space or PE time for everyone else.</p></div>
+  <div class="goal"><b>G4</b><h3>System safety</h3><p>No unprivileged application can use the APMU to change SoC configuration, interrupt routing or core behaviour.</p></div>
+</div>
+</section>
+
+<section>
+<h2 class="col">3. Architecture</h2>
+<p class="col">Four zones, two boundaries that matter. Userspace talks only to <code>/dev/apmu</code> and only in abstract terms. The kernel module is the reference monitor: it decides, binds abstract requests to concrete hardware, and is the only writer of APMU configuration. The base image on the PE executes what the kernel installed and stamps every message with where it came from.</p>
+<div class="stack-wrap" role="img" aria-label="Layered architecture: untrusted applications, the trusted kernel module with its parts, the PE with the trusted base and untrusted components, and the hardware.">
+<div class="stack">
+  <div class="zone user"><div class="zl"><span>Userspace · untrusted</span><span>any uid, many processes</span></div>
+    <div class="row">
+      <div class="box"><b>Application A</b><span>session = open fd; owns its handles</span></div>
+      <div class="box"><b>Application B</b><span>another user, same or different uid</span></div>
+      <div class="box evil"><b>Malicious app</b><span>crafted ioctls, floods, fork, fd passing</span></div>
+      <div class="box"><b>libapmu</b><span>convenience only; no security role</span></div>
+    </div>
+  </div>
+  <div class="boundary"><em>Boundary 1</em> ioctl / mmap on /dev/apmu: abstract requests in, opaque handles out; everything copied and validated</div>
+  <div class="zone kernel"><div class="zl"><span>Kernel · apmu.ko · trusted reference monitor</span><span>sole writer of APMU configuration</span></div>
+    <div class="row">
+      <div class="box"><b>Session manager</b><span>credentials captured at open; per-session handle table</span></div>
+      <div class="box"><b>Policy engine</b><span>event scopes, capabilities, admin policy, quotas</span></div>
+      <div class="box"><b>Resource ledger</b><span>counters, ISPM/DSPM, slots, windows, IRQs: who holds what</span></div>
+      <div class="box"><b>Component loader</b><span>parse, link, verifier hook, bind, install</span></div>
+    </div>
+    <div class="row">
+      <div class="box"><b>Message broker</b><span>admission, rate limits, routing by session tag</span></div>
+      <div class="box"><b>Hardware owner</b><span>claims the APMU MMIO region; programs selectors, IOPMP, IRQs</span></div>
+      <div class="box"><b>Supervisor</b><span>watchdog, recovery, blame and eviction</span></div>
+      <div class="box"><b>Audit</b><span>grants, denials, evictions to the kernel log</span></div>
+    </div>
+  </div>
+  <div class="boundary"><em>Boundary 2</em> kernel ↔ PE: install records, tagged requests; the kernel scrubs memory and counters on every hand-over</div>
+  <div class="zone pe"><div class="zl"><span>APMU PE</span><span>one core, no privilege levels today</span></div>
+    <div class="row">
+      <div class="box"><b>apmu-os base</b> <span class="tag kernel">trusted</span><span>dispatch by component; stamps sender and request tag on replies; no API for hardware configuration</span></div>
+      <div class="box evil"><b>Components</b> <span class="tag user">untrusted code</span><span>may only use counters and windows bound to them; enforced by the verifier (and later by PMP)</span></div>
+    </div>
+  </div>
+  <div class="zone hw"><div class="zl"><span>Hardware</span><span>configured only by the kernel</span></div>
+    <div class="row">
+      <div class="box"><b>Counters 0–31</b><span>selectors, info ops, budgets</span></div>
+      <div class="box"><b>ISPM · DSPM</b><span>code, data, queues</span></div>
+      <div class="box"><b>PE AXI master</b><span>EVU config window; optional IOPMP</span></div>
+      <div class="box"><b>Overflow IRQs</b><span>to the PLIC</span></div>
+    </div>
+  </div>
+</div>
+</div>
+<div class="legend"><span><span class="tag user">orange</span> untrusted</span><span><span class="tag kernel">teal</span> trusted kernel</span><span><span class="tag pe">violet</span> PE</span><span><span class="tag hw">grey</span> hardware</span><span>dashed boxes: assumed hostile</span></div>
+
+<h3 class="col">Rules that hold everything together</h3>
+<ol class="col">
+  <li><b>Nobody but the kernel names a raw resource.</b> Userspace never passes a counter number, register address, physical address or component id that the kernel acts on directly. It asks for an event in semantic terms and gets an opaque handle back.</li>
+  <li><b>The kernel is the only writer of APMU configuration.</b> It programs event selectors, budgets, the IOPMP and IRQ routing itself, after checking policy. Components get the result (which counters are theirs), never the means.</li>
+  <li><b>Every object is owned by one session</b> (an open file), every operation is checked against that ownership, and sharing happens only through an explicit grant.</li>
+  <li><b>Every hand-over is scrubbed.</b> Counters are reset and their selectors cleared, DSPM and ISPM ranges zeroed, mailboxes and in-flight replies dropped, before a resource changes owner.</li>
+  <li><b>Everything is bounded per user</b>: slots, memory, counters, in-flight requests, message rate, and PE time.</li>
+</ol>
+</section>
+
+<section>
+<h2 class="col">4. Who controls what</h2>
+<p class="col">For each hardware resource: who may configure it, what an untrusted application may ask for, what the kernel checks, and what component code may do with it (the verifier's job).</p>
+<div class="note col"><b>Decided 2026-10-07: the kernel owns the counters.</b> Components and applications never choose a counter index or write an event selector, event info or budget. The kernel allocates counters from the manifest, programs and resets them, and links the chosen indices and the wake-up mask into the component. Not implemented yet: today <code>latency_binning</code> still programs its own counter in <code>init_hook</code> and the wake-up mask comes from the object.</div>
+<div class="tbl"><table>
+<thead><tr><th>Resource</th><th>Configured by</th><th>Untrusted app may request</th><th>Kernel checks and does</th><th>Component may</th></tr></thead>
+<tbody>
+<tr><td>Counter + event selector</td><td><span class="tag kernel">kernel only</span></td><td>An event in abstract form: class (core pipeline, core↔LLC, DRAM), event, operation (count, max, min, range), scope</td><td>Scope allowed for the caller (section 5); quota; translates to port/source/event masks covering only allowed cores; resets the counter; records the owner</td><td><code>cnt.rd/wr/wfp</code> on its own counters only; no selector writes</td></tr>
+<tr><td>Event info / opcode</td><td><span class="tag kernel">kernel only</span></td><td>Part of the event request (e.g. "max latency", "count in range 8–16")</td><td>Opcode and fields from a fixed list</td><td>Nothing</td></tr>
+<tr><td>Budgets, MemGuard period, overflow IRQ</td><td><span class="tag kernel">kernel only</span></td><td>"Notify me on overflow of my counter" (delivered as a readable event on the session)</td><td>Notification: own counter only. Budgets and regulation of cores: administrator policy only, never per application. The period is global and never delegated</td><td>Nothing</td></tr>
+<tr><td>CVA6 EVU event export (<code>0x10606000</code>)</td><td><span class="tag kernel">kernel only</span></td><td>Nothing directly; the event catalogue lists what is exported</td><td>Set by administrator policy; changes affect every observer</td><td>Nothing</td></tr>
+<tr><td>PE system-memory window</td><td><span class="tag kernel">kernel only</span> (IOPMP if present)</td><td>A shared buffer of N bytes, mapped into the app with <code>mmap</code></td><td>Kernel allocates and pins the pages, programs the IOPMP entry for that component, revokes on uninstall. Never an address chosen by userspace</td><td>Loads and stores inside its granted windows only</td></tr>
+<tr><td>ISPM / DSPM space</td><td><span class="tag kernel">kernel only</span></td><td>Implicitly, by the object's size</td><td>Per-user byte quota; zeroed before reuse</td><td>Its own code and data range, its own stack frames</td></tr>
+<tr><td>Component slot (1–9)</td><td><span class="tag kernel">kernel only</span></td><td>Install</td><td>Per-user and per-session slot quota; slots are never shown to users</td><td>Nothing</td></tr>
+<tr><td>Request queue</td><td><span class="tag kernel">kernel only</span> writes it</td><td>Send ≤ 64 words to a handle it holds</td><td>In-flight cap and rate per session; round-robin between sessions; request tagged with the session</td><td>Read its requests (through the base)</td></tr>
+<tr><td>Response queue</td><td><span class="tag pe">base</span> writes, kernel reads</td><td>Receive or poll on a handle it holds</td><td>Routes by the base's stamp (component, request tag), never by what the component claims</td><td>Reply through the base API only</td></tr>
+<tr><td>apmu-os image, PE stall/reset</td><td><span class="tag kernel">kernel only</span></td><td>Nothing</td><td>Base image from <code>/lib/firmware</code> (root-owned, optionally signed) at module load; reset only by the supervisor or the administrator</td><td>Nothing</td></tr>
+</tbody></table></div>
+</section>
+
+<section>
+<h2 class="col">5. Event visibility policy</h2>
+<div class="col">
+<p>The APMU attributes every event to a core (the EVU port, the LLC port and the DRAM source all identify the core). Linux schedules processes on cores, not cores on processes, so "my own events" only means something when the cores are reserved. The policy follows Linux's existing rule for perf (<code>perf_event_paranoid</code>, <code>CAP_PERFMON</code>): watching activity that is not yours requires a privilege.</p>
+</div>
+<div class="tbl"><table>
+<thead><tr><th>Scope requested</th><th>Granted when</th><th>Kernel translation</th></tr></thead>
+<tbody>
+<tr><td><code>own</code></td><td>The caller's cgroup holds an exclusive core lease from the administrator (an exclusive cpuset), and the caller is confined to it</td><td>Port and source masks restricted to the leased cores; if the lease set cannot be expressed as one mask, several counters or a refusal</td></tr>
+<tr><td><code>core:n</code></td><td>Core n is in the caller's lease, or the caller has <code>CAP_PERFMON</code></td><td>Single core selected</td></tr>
+<tr><td><code>system</code> (any source)</td><td><code>CAP_PERFMON</code> (or <code>CAP_SYS_ADMIN</code>)</td><td>Wildcard masks</td></tr>
+</tbody></table></div>
+<div class="col">
+<p>Leases are revocable: when the administrator changes the cpuset, the kernel stops the affected counters before the cores are shared again, and the session sees its handle report <code>revoked</code>. With the board's current single-hart Linux, only <code>system</code> scope is meaningful, so the first implementation can be "<code>CAP_PERFMON</code> or nothing", with leases added once more cores run Linux or partitioned workloads.</p>
+</div>
+</section>
+
+<section>
+<h2 class="col">6. The interface</h2>
+<div class="two">
+  <div class="card">
+    <h3><span class="tag user">any user</span> Session API</h3>
+    <ul>
+      <li><code>open("/dev/apmu")</code>: a session; the kernel records uid, capabilities and cgroup now, like perf does.</li>
+      <li><code>INSTALL {eBPF program, manifest}</code> → handle. Fails with a reason: quota, scope, no space, rejected by verifier.</li>
+      <li><code>UNINSTALL {handle}</code></li>
+      <li><code>SEND {handle, ≤64 words}</code>, <code>RECV {handle, timeout}</code>, <code>poll()</code> for replies and overflow notifications.</li>
+      <li><code>mmap(handle)</code>: the component's shared buffer, if the manifest asked for one.</li>
+      <li><code>INFO</code>: the session's own handles and their state; for everyone else only totals (free slots, free bytes), no owners or placements.</li>
+      <li><code>GRANT {handle, uid | gid}</code> (optional): lets another user send to a component; replies still go only to the sender.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3><span class="tag kernel">administrator</span> Control API</h3>
+    <ul>
+      <li>Policy (sysfs or configfs): quotas per user and group, event classes allowed per group, core leases, whether regulation is enabled.</li>
+      <li>System components: persistent, not owned by any session, with an explicit access list.</li>
+      <li>Regulation: MemGuard budgets and period, overflow-to-core actions, EVU event export.</li>
+      <li>Reload the base image, evict or kill any component, read the full ledger.</li>
+      <li>Debug mode (raw access for <code>apmuctl</code>): off unless the module is loaded with it, and logged.</li>
+    </ul>
+  </div>
+</div>
+<h3 class="col">Manifest: what an install asks for</h3>
+<p class="col">The manifest travels next to the object. The kernel grants exactly what it lists or refuses, then writes the bindings into the component (it already links the object, so it patches the values in).</p>
+<pre class="code">manifest {
+  counters[] = {                          // at most the user's counter quota
+    { class: dram, event: rd_res, op: max(info[15:0]), scope: own },
+    { class: llc,  event: rd_req, op: count,           scope: core:1 },
+  }
+  notify_overflow = [1]                   // counter 1 overflows reach this session
+  shared_buffer   = 4096                  // bytes, rw, mapped with mmap(handle)
+  pe_budget_us    = 50                    // longest handler run the component asks for
+}
+// bound by the kernel, patched into the object at link time:
+component_counters[] = { 7, 12 }          // indices chosen by the kernel
+component_bitmask    = (1u << 7)          // wake-up mask, computed by the kernel
+component_window     = { 0x8f3a0000, 4096 }</pre>
+</section>
+
+<section>
+<h2 class="col">7. Installing a component</h2>
+<p class="col">Each check happens before anything reaches the hardware; the hardware is touched only in the last third, using ranges not owned by a running component.</p>
+<div class="mermaid-wrap">
+<pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant A as App (untrusted)
+  participant K as apmu.ko
+  participant V as Kernel BPF verifier
+  participant P as apmu-os base
+  participant H as APMU hardware
+  A->>K: INSTALL {eBPF program, manifest}
+  K->>K: copy in, size limits
+  K->>K: policy: scopes allowed? quotas left?
+  K->>K: ledger: reserve counters, slot, ISPM/DSPM, window
+  K->>V: bpf_check as BPF_PROG_TYPE_APMU, grants as context
+  V->>K: offload hooks: insn_hook / finalize (APMU checks)
+  V-->>K: accept / reject (verifier log)
+  K->>K: translate to RV32 (masks, counter table), link
+  K->>H: zero unused ranges, write code and data
+  K->>H: program selectors, reset counters, IOPMP entry
+  K->>P: INSTALL (id, generation, entry points, bitmask)
+  P-->>K: synchronized and active
+  K-->>A: opaque handle
+</pre>
+</div>
+<div class="note col"><b>Decided 2026-10-07: components are eBPF, checked by the Linux kernel's own verifier.</b> Applications submit eBPF bytecode (restricted C compiled with <code>clang -target bpf</code>) instead of RV32 objects. A patched kernel adds a program type, <code>BPF_PROG_TYPE_APMU</code>; the unmodified verifier checks it, and apmu.ko translates it to RV32 for the PE through the BPF offload hooks, the path NFP SmartNIC offload already uses. Chosen over PREVAIL in a root daemon: carrying a kernel patch is acceptable at this stage of the project, and building on the kernel's verifier is more credible. Not implemented yet; the board runs Linux 6.1.</div>
+<div class="col">
+<h3>What a component must be checked against</h3>
+<p>The PE runs RV32IM in M-mode with no PMP and no interrupts, so each property comes from the checks below rather than from hardware.</p>
+</div>
+<div class="tbl"><table>
+<thead><tr><th>#</th><th>Constraint</th><th>Why it matters on the APMU</th><th>Enforced by</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Loads and stores only to the component's own data, stack and <code>component_window</code>, whole access width in range</td><td>The PE data port reaches APMU registers, the DSPM header, queues, other components, the base and ISPM</td><td>Verifier (context and memory types); translator masks every address as well</td></tr>
+<tr><td>2</td><td>No writes to code</td><td>ISPM is reachable from the data port</td><td>Translator: no store targets ISPM</td></tr>
+<tr><td>3</td><td>Control flow stays in its own code; calls only to base exports</td><td>An indirect jump would run base code with the component's arguments</td><td>Verifier (no indirect jumps); helpers mapped to base entry points by the translator</td></tr>
+<tr><td>4</td><td>Return addresses cannot be overwritten</td><td>The stack is writable by the component</td><td>By construction: a BPF program addresses only its 512-byte frame; the translator keeps <code>ra</code> outside it</td></tr>
+<tr><td>5</td><td><code>cnt.*</code> only on granted counters; no <code>cnt.wfp</code></td><td>The counter instructions take any index; <code>cnt.wfp</code> blocks the PE</td><td>Helper <code>counter_*(slot)</code>: the verifier checks the slot is a constant below the grant count, the translator indexes the kernel's grant table</td></tr>
+<tr><td>6</td><td>No CSR writes, <code>mret</code>, <code>ecall</code>, <code>wfi</code>, <code>fence.i</code></td><td>Everything runs in M-mode</td><td>By construction: the translator never emits them</td></tr>
+<tr><td>7</td><td>No unknown encodings</td><td>Illegal instructions trap the whole PE</td><td>By construction</td></tr>
+<tr><td>8</td><td>Each handler finishes within <code>pe_budget_us</code></td><td>No preemption on the PE: one long handler stalls every component</td><td>Verifier proves loops bounded; an APMU check in <code>finalize</code> bounds the worst-case path length (the verifier does not)</td></tr>
+<tr><td>9</td><td>Bounded stack depth</td><td>Overflow runs into neighbouring memory</td><td>Verifier (frame size and call depth limits)</td></tr>
+<tr><td>10</td><td>Replies carry the base's identity, not the component's</td><td>A component could address another application's mailbox</td><td>Base stamps id and request tag (section 8); nothing to verify</td></tr>
+</tbody></table></div>
+<div class="col">
+<h3>Kernel changes, kept small</h3>
+<ul>
+  <li><b>Program type.</b> An entry in <code>bpf_types.h</code> and verifier ops: <code>is_valid_access</code> describes the context (event info) and the window as a fixed-size region; <code>get_func_proto</code> lists the helpers (<code>reply</code>, <code>printf</code>, <code>counter_read</code>, <code>counter_reset</code>). The verifier's own logic is not modified, so the claim "checked by the kernel verifier" can be confirmed from a short diff.</li>
+  <li><b>Offload ops in apmu.ko</b> (<code>bpf_prog_offload_ops</code>). <code>insn_hook</code> rejects instructions the PE cannot run; <code>finalize</code> runs the APMU-specific checks (worst-case path length against <code>pe_budget_us</code>, counter slots against the grants); <code>translate</code> emits RV32. Checks the kernel verifier does not make are kept in these callbacks so it is clear which part proves what.</li>
+  <li><b>Host-only passes off for this type</b>: Spectre hardening, ALU sanitation and constant blinding protect nothing on the PE and cost ISPM space.</li>
+  <li><b>Unprivileged load</b> for this type, gated by the manifest policy rather than <code>CAP_BPF</code>. Most past verifier bugs led to host compromise because the program ran on the host; an APMU program runs on the PE, behind the translator's masks.</li>
+  <li><b>Maps</b>, if components need them, are device-bound and live in DSPM; the shared buffer (<code>mmap(handle)</code>) stays as it is.</li>
+</ul>
+<h3>Translator</h3>
+<p>Based on the kernel's eBPF to RV32 JIT (<code>arch/riscv/net/bpf_jit_comp32.c</code>, built only for 32-bit kernels, so ported into apmu.ko). eBPF registers are 64-bit, so code is larger and slower than hand-written RV32; programs compiled for 32-bit ALU operations and the verifier's zero-extension elimination reduce it. The translator masks every load and store into the component's regions even though the verifier has proved them in range: isolation then does not depend on the verifier being bug-free, at one or two instructions per access.</p>
+<p><b>Not covered statically:</b> a handler that overruns its budget anyway (a slow helper, a bad worst-case estimate). Stopping it needs the PE timer interrupt (section 9); until then the module's ping timeout and recovery are the backstop, which restarts every component. If PMP becomes available on the PE, rows 1 to 3 and 5 also gain a hardware check.</p>
+</div>
+</section>
+
+<section>
+<h2 class="col">8. Keeping applications apart</h2>
+<div class="two">
+  <div class="card">
+    <h3>Messages</h3>
+    <ul>
+      <li>Handles are per session and carry a generation number, so a stale handle can never reach a component that later took the same slot.</li>
+      <li>The kernel tags each request with its session; the base stamps every reply with the component it dispatched to and that tag. A component cannot claim to be another one, and a shared component's replies go back to whoever asked.</li>
+      <li>Replies still in the queue when a component is removed are dropped, not delivered to the slot's next owner.</li>
+      <li>Admission control: a cap on in-flight requests per session and round-robin between sessions, so one sender cannot fill the 760-byte queue.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>State and resources</h3>
+    <ul>
+      <li>On uninstall, recovery or revocation: counters reset and selectors cleared, ISPM/DSPM ranges zeroed, IOPMP entry removed, notifications cancelled.</li>
+      <li>Quotas per user: slots, ISPM/DSPM bytes, counters, shared-buffer bytes, in-flight requests, messages per second.</li>
+      <li><code>INFO</code> shows a session only its own components; other users' presence, placement and counters are not visible.</li>
+      <li>Closing a session (or process exit) removes everything it owns.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>PE time and recovery</h3>
+    <ul>
+      <li>The base writes the id of the component it is about to run into DSPM. When the PE stops answering or traps, the supervisor knows whom to blame (trap address, or the running component).</li>
+      <li>A component that causes repeated recoveries is evicted and its owner told why; repeat offenders lose install rights for a while.</li>
+      <li>Recovery restarts every component, so its cost falls on everyone: eviction keeps one application from doing that repeatedly.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Host-side hardening</h3>
+    <ul>
+      <li>The module claims the APMU MMIO range (<code>request_mem_region</code>) and the kernel is built with <code>CONFIG_IO_STRICT_DEVMEM</code>: even root cannot map the APMU through <code>/dev/mem</code> while the module owns it.</li>
+      <li>The base image comes from <code>/lib/firmware</code> (optionally signed), not from an ioctl.</li>
+      <li><code>/dev/apmu</code> is mode 0660, group <code>apmu</code>, not 0666.</li>
+      <li>Every ioctl copies its arguments once and validates them; no pointer from userspace ever reaches the PE.</li>
+    </ul>
+  </div>
+</div>
+</section>
+
+<section>
+<h2 class="col">9. What software alone cannot enforce</h2>
+<div class="col">
+<p>The PE has no privilege levels (Ibex is built with <code>PMPEnable = 0</code>), the counter instructions take any index, and its data port reaches the APMU registers. Until the hardware changes, isolation between components on the PE rests on the verifier. These RTL changes would move it into hardware, in order of value:</p>
+<ol>
+  <li><b>PMP and user mode on the PE.</b> Components run in U-mode with PMP regions set by the base from the kernel's grants: their code, data, stack and window only; no APMU registers.</li>
+  <li><b>A per-context counter mask.</b> A register, writable only in M-mode, that limits which indices <code>cnt.*</code> may touch.</li>
+  <li><b>The IOPMP on the APMU master path</b> in every bitstream (<code>APMU_IOPMP</code>), programmed by the kernel.</li>
+  <li><b>A timer interrupt on the PE</b> (all PE interrupts are tied off in <code>pmu_core.sv</code>) so the base can preempt a handler that exceeds its budget.</li>
+  <li><b>The DSPM arbitration fix</b> (apmu.md §14.18). Today a host write on behalf of one application can corrupt another component's data, which breaks G2 between applications.</li>
+</ol>
+</div>
+<div class="note warn col"><b>Remaining risks with all of the above.</b> Components share one PE, so an application can still infer other components' activity from the latency of its own replies (timing side channel); the in-flight caps and time budgets limit but do not remove it. Core-granular events also leak the activity of anything else scheduled on a leased core, which is why leases must be exclusive.</div>
+</section>
+
+<section>
+<h2 class="col">10. From today's module to this design</h2>
+<div class="tbl"><table>
+<thead><tr><th>Item</th><th>Today</th><th>Needed</th></tr></thead>
+<tbody>
+<tr><td>Components owned by the installing fd; others get <code>ENOENT</code></td><td><span class="tag ok">done</span></td><td>Opaque handles with generations instead of the visible id 1–9</td></tr>
+<tr><td>Per-component mailboxes; boot and persistent components root-only</td><td><span class="tag ok">done</span></td><td>Persistent components get access lists; shared ones route replies by request tag</td></tr>
+<tr><td>Who programs event selectors</td><td><span class="tag gap">component</span> <small>latency_binning writes its own selector in init_hook</small></td><td>The kernel, from the manifest; components get indices. <b>Decided</b>, next to implement</td></tr>
+<tr><td>Reply attribution</td><td><span class="tag gap">component-supplied id</span> <small>component_reply() passes component_id from the component's own data</small></td><td>The base stamps id and request tag from its dispatch context</td></tr>
+<tr><td>Late replies after uninstall</td><td><span class="tag gap">can reach the slot's next owner</span></td><td>Generation check in the broker</td></tr>
+<tr><td>Wake-up bitmask</td><td><span class="tag gap">from the object</span></td><td>Computed by the kernel from granted counters</td></tr>
+<tr><td>Scrubbing on hand-over</td><td><span class="tag gap">none</span></td><td>Zero ISPM/DSPM ranges, reset counters and selectors</td></tr>
+<tr><td>Quotas and rate limits</td><td><span class="tag gap">none</span> <small>first come, first served for 9 slots</small></td><td>Per user and per session (section 4)</td></tr>
+<tr><td><code>INFO</code></td><td><span class="tag part">shows every component's placement</span></td><td>Own handles plus totals</td></tr>
+<tr><td>Event scope policy</td><td><span class="tag gap">none</span></td><td><code>CAP_PERFMON</code> for system scope first; leases later</td></tr>
+<tr><td>Raw access</td><td><span class="tag part">/dev/apmu 0666; apmuctl via /dev/mem</span></td><td>0660 + group; MMIO region claimed, strict devmem, debug mode off</td></tr>
+<tr><td>Base image</td><td><span class="tag part">from root userspace via BOOT</span></td><td><code>request_firmware</code> at load</td></tr>
+<tr><td>Failure handling</td><td><span class="tag ok">recovery</span> <small>restart and reinstall</small></td><td>Add blame and eviction</td></tr>
+<tr><td>Component format and verifier</td><td><span class="tag gap">RV32 objects, unchecked</span> <small>hook place exists after linking in install()</small></td><td>eBPF, <code>BPF_PROG_TYPE_APMU</code> on a patched 6.1 kernel, offload ops and RV32 translator in apmu.ko (section 7). <b>Decided</b></td></tr>
+</tbody></table></div>
+<p class="col">Suggested order: kernel-owned counters and the manifest (it removes the biggest hole: components choosing what to watch), then base-stamped replies with request tags and generations, then scrubbing and quotas, then the host-side hardening, then core leases.</p>
+</section>
+</main>
+<script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs"; mermaid.initialize({ startOnLoad: true });</script>
+</body>
+</html>
