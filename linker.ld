@@ -33,11 +33,10 @@ ENTRY(_start)
 /* Memory regions for Instruction and Data Memories */
 MEMORY
 {
-    /* ISPM ORIGIN is deliberately ISPM_BASE_ADDR - 4 (0x10427000 - 4) to work
-       around a program-counter quirk in the APMU-PE. Keep this invariant if the
-       address map moves again: ORIGIN = (address the loader copies .text to) - 4. */
-    ISPM (rx) : ORIGIN = 0x10426FFC, LENGTH = 0x1000
-    DSPM (rw) : ORIGIN = 0x10428000, LENGTH = 0x1000
+    /* The fixed fetch interface executes code at the address where it is
+       loaded.  This bitstream has an 8 KiB ISPM followed by the DSPM. */
+    ISPM (rx) : ORIGIN = 0x10427000, LENGTH = 0x2000
+    DSPM (rw) : ORIGIN = 0x10429000, LENGTH = 0x1000
 }
 
 SECTIONS
@@ -48,6 +47,7 @@ SECTIONS
         *(.text)
         *(.text.*)
         . = ALIGN(4);
+        _dyn_ispm_start = .;    /* rest of ISPM: dynamic components */
     } > ISPM
 
     .rodata : {

@@ -28,9 +28,19 @@ _start:
   .global _start
 
 reset_handler:
-  /* set all registers to zero */
-  .word 0x00000033
-  .word 0x00000033
+  /* Traps land here too: Ibex keeps only mtvec[31:8], which is the image
+     start. mcause is 0 after reset and nonzero after a trap, so record the
+     trap (apmu_abi.h ABI_TRAP_OFF) and restart cold. */
+  csrr t0, mcause
+  beqz t0, 1f
+  li   t1, 0x1042A018          /* ABI_DSPM_PHYS + ABI_TRAP_OFF */
+  sw   t0, 0(t1)
+  csrr t0, mepc
+  sw   t0, 4(t1)
+  csrr t0, mtval
+  sw   t0, 8(t1)
+  csrw mcause, x0
+1:
   mv  x1, x0
   mv  x2, x1
   mv  x3, x1
@@ -78,9 +88,6 @@ zero_loop:
   ble x26, x27, zero_loop
 zero_loop_end:
 
-/* Set up trap handler */
-  la t0, _trap_handler
-  csrw mtvec, t0
 main_entry:
   /* jump to main program entry point (argc = argv = 0) */
   addi x10, x0, 0
@@ -92,11 +99,3 @@ main_entry:
 sleep_loop:
 #   wfi
   j sleep_loop
-
-/* Trap handler for interrupts/exceptions */
-_trap_handler:
-    j _trap_loop
-
-_trap_loop:
-    /* Infinite loop in trap handler */
-    j _trap_loop

@@ -1,56 +1,55 @@
 #include <events.h>
+#include <pmu_hw_desc.h>
 
-// Global event map
-event_obj_t event_list[MAX_EVENTS];
-size_t event_count = 0;  // Keeps track of the number of registered events
+typedef struct {
+    uint32_t bitmask;
+    event_handler_t handler;
+} event_obj_t;
 
-// Function to register an event handler
-int register_event_handler(uint32_t id, uint32_t bitmask, event_handler_t handler) {
-    if (id < MAX_EVENTS) {
-        event_list[id].bitmask = bitmask;
-        event_list[id].handler = handler;
-        event_count++;
-        return 0;  // Success
-    } else {
-        return -1; // Failure (event map is full)
-    }
+static event_obj_t event_list[MAX_EVENTS];
+static uint32_t global_event_bitmask;
+
+static void update_global_bitmask(void)
+{
+    uint32_t i, m = 0;
+
+    for (i = 0; i < MAX_EVENTS; i++)
+        m |= event_list[i].bitmask;
+    global_event_bitmask = m;
 }
 
-int unregister_event_handler(uint32_t id) {
-    if (id < MAX_EVENTS) {
-        event_list[id].bitmask = 0;
-        event_list[id].handler = 0;
-        event_count--;
-        return 0;  // Success
-    } else {
-        return -1; // Failure (event map is full)
-    }
+int register_event_handler(uint32_t id, uint32_t bitmask, event_handler_t handler)
+{
+    if (id >= MAX_EVENTS)
+        return -1;
+    event_list[id].bitmask = handler ? bitmask : 0;
+    event_list[id].handler = handler;
+    update_global_bitmask();
+    return 0;
 }
 
-
-
-
-
-// Function to check and call handlers
-void process_events(uint32_t bitmask) {
-    // because bitmask for events that are empty is zero, this will prevent from going into if statement and calling the handler. 
-    for (size_t i = 0; i < MAX_EVENTS; i++) {
-        if (bitmask & event_list[i].bitmask) {    // Check rd agains bitmask of evey event added in event map
-        // This will call the handler even if any of the bits match
-        // We can modify this to if ((bitmask & event_list[i].bitmask) == event_list[i].bitmask) 
-        // to only call handler when all bits of bitmask and bitmask match
-            event_list[i].handler(bitmask);  // Call the handler
-        }
-    }
+int unregister_event_handler(uint32_t id)
+{
+    return register_event_handler(id, 0, 0);
 }
 
-// Initialize event handlers 
-void init_event_handlers() {
-    // Add some default events here
-    for (int i = 0; i < MAX_EVENTS; i++) {
-        event_list[i].handler = 0;  // Set all handlers to null initially 
-        event_list[i].bitmask = 0;  // Set bitmask to zero initially
-    }
+void init_event_handlers(void)
+{
+    uint32_t i;
+
+    for (i = 0; i < MAX_EVENTS; i++)
+        event_list[i].handler = 0, event_list[i].bitmask = 0;
+    global_event_bitmask = 0;
 }
 
+void process_events(void)
+{
+    uint32_t i, fired;
 
+    for (;;) {
+        counter_wait_pending(fired, global_event_bitmask);
+        for (i = 0; i < MAX_EVENTS; i++)
+            if (fired & event_list[i].bitmask)
+                event_list[i].handler(fired);
+    }
+}

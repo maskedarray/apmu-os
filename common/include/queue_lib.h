@@ -2,30 +2,21 @@
 #define QUEUE_LIB_H
 
 #include <stdint.h>
-#include <string.h>
-#include <common_defines.h>
+#include <apmu_abi.h>
 
-#define PUT_SUCCESS 0
-#define PUT_FAIL 1
+// Single-producer single-consumer queue in DSPM (layout in apmu_abi.h).
+// Push and pop are two-phase: get a buffer, fill or read it, then commit.
 
-// Request structure
-typedef struct request {
-    uint32_t next;     // Pointer to next element in the queue
-    uint32_t size;     // Size of the payload
-    uint32_t consumed;
+typedef struct {
+    uint32_t size;
     uint32_t req_id;
-    char payload[];    // Payload of variable size
-} request_t;
+    uint32_t payload[];
+} queue_obj_t;
 
-// Memory access macros
-#define WRITE_MEM(addr, value) (*((volatile uint32_t *)(addr)) = (value))
-#define READ_MEM(addr) (*((volatile uint32_t *)(addr)))
+void queue_init(uint32_t queue_id);
+queue_obj_t *queue_push_get_buffer(uint32_t queue_id, uint32_t size);
+void queue_push_buffer(uint32_t queue_id, queue_obj_t *obj);
+queue_obj_t *queue_pop_get_buffer(uint32_t queue_id, uint32_t *size_out);
+void queue_pop(uint32_t queue_id);
 
-// Function prototypes
-int put_request(void* req_ptr, uint32_t size, int reqnum);
-void* get_request(uint32_t* size_out);
-void consume_requests(void);
-
-
-
-#endif // QUEUE_LIB_H
+#endif

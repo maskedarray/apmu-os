@@ -1,17 +1,11 @@
 #include "debug_printf.h"
 #include <common_defines.h>
 
-void write_to_memory(unsigned int value) {
-    asm volatile (
-        "sw %0, 0(%1)\n"         // Store value into the scratch slot
-        :                         // No output operands
-        : "r" (value),           // Input operand: value to store
-          "r" (DEBUG_SCRATCH_ADDR)
-    );
-}
+static volatile char *output_ptr;
 
 void init_print_mem() {
     volatile char *ptr = PRINT_START_ADDRESS;
+    output_ptr = PRINT_START_ADDRESS;
     while (ptr <= PRINT_END_ADDRESS) {
         *ptr = '\0';
         ptr++;
@@ -21,8 +15,6 @@ void init_print_mem() {
 
 
 void mem_putchar(char c) {
-    // Ensure we don't exceed the memory limit
-    static volatile char *output_ptr = PRINT_START_ADDRESS;
     if (output_ptr <= PRINT_END_ADDRESS) {
         *output_ptr = c;
         output_ptr++;

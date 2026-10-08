@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define __APMU_CLOCK_FREQ__ 50000000   // 50 MHz
+#define __APMU_CLOCK_FREQ__ 20000000   // 20 MHz (opendram2)
 
 // Function to get the current cycle count
 uint64_t get_cycles(void);

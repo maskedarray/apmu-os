@@ -1,232 +1,73 @@
-#include "queue_lib.h"
+#include <queue_lib.h>
 
+#ifndef QUEUE_DSPM_BASE
+#define QUEUE_DSPM_BASE ABI_DSPM_PHYS
+#endif
 
-// Function to add a new request object to the queue (producer)
-int put_request(void* req_ptr, uint32_t size, int reqnum) {
-    if (size == 0) return PUT_FAIL;
-    uint32_t head = READ_MEM(QUEUE_HEAD_ADDR);  // Get current head pointer
-    uint32_t next_free_addr = head;
-    uint32_t tail = READ_MEM(QUEUE_TAIL_ADDR);
-    if (((request_t*)head)->size != 0) { // If always taken except first initialization
-        next_free_addr = head + sizeof(request_t) + ((request_t*)head)->size;
-        if(next_free_addr >= (QUEUE_SIZE + QUEUE_START_ADDR)){       // current head points to a wraped around object
-            next_free_addr -= (QUEUE_SIZE); 
-            if ((next_free_addr + sizeof(request_t) + size) >= tail)
-                return PUT_FAIL;  
-        }
-    }
+#define QUEUE(id)   ((volatile uint32_t *)(uintptr_t)(QUEUE_DSPM_BASE + \
+                     ((id) == ABI_QUEUE_REQ ? ABI_REQ_Q_OFF : ABI_RSP_Q_OFF)))
+#define HEAD(id)    QUEUE(id)[0]
+#define TAIL(id)    QUEUE(id)[1]
+#define OBJ(id, o)  ((queue_obj_t *)((uintptr_t)&QUEUE(id)[2] + (o)))
 
-    uint32_t total_size = sizeof(request_t) + size;
-    
-    // This loop will never be triggered if head points to object that is wrapped around.
-    // This assumption if proven wrong will render the following logic faulty
-    if (next_free_addr + total_size > QUEUE_SIZE + QUEUE_START_ADDR) {
-        
-        // Calculate remaining space before wrapping around
-        uint32_t space_before_wrap = (QUEUE_SIZE + QUEUE_START_ADDR) - next_free_addr;
-        // if (space_before_wrap > sizeof(request_t) + 1){         // Removing support for wrapped objects, this if should never be triggered.
-        if(0){
-            // Not enough space before wrap, check tail pointer
-            // first condition should never be true That means that tail data has already been overwritten
-            uint32_t end_addr = QUEUE_START_ADDR + total_size - space_before_wrap;
-            if (tail <= end_addr) {    // no object should be equal or more than half of total queue size
-                // If tail pointer is between next_free_addr and overflow, reject the request
-                return PUT_FAIL;
-            }
-
-            // Create new request at next_free_addr
-            request_t* req = (request_t*)next_free_addr;
-            req->next = 0; // No next request yet
-            req->size = size;
-            req->consumed = 0;
-            req->req_id = reqnum;
-
-            // Copy part of the payload that fits before the wrap
-            memcpy(req->payload, req_ptr, space_before_wrap - sizeof(request_t));
-
-            // Step 2: Wrap around and copy the remaining payload at the start of the queue
-            req_ptr = (char*)req_ptr + (space_before_wrap - sizeof(request_t));
-            uint32_t remaining_size = size - (space_before_wrap - sizeof(request_t));
-
-            uint32_t next_free_addr2 = QUEUE_START_ADDR;  // Wrap to the start of the queue
-            memcpy((void*)next_free_addr2, req_ptr, remaining_size);
-            request_t* last_req = (request_t*)head;
-            last_req->next = next_free_addr;  // Link last request to new one
-
-            WRITE_MEM(QUEUE_HEAD_ADDR, next_free_addr);
-        } else{
-            // Not enough space before wrap, check tail pointer
-            // first condition should never be true That means that tail data has already been overwritten
-            uint32_t end_addr = QUEUE_START_ADDR + total_size ;
-            if (tail <= end_addr) {    // no object should be equal or more than half of total queue size
-                // If tail pointer is between next_free_addr and overflow, reject the request
-                return PUT_FAIL;
-            }
-
-            // Create new request at next_free_addr
-            request_t* req = (request_t*)QUEUE_START_ADDR;
-            req->next = 0; // No next request yet
-            req->size = size;
-            req->consumed = 0;
-            req->req_id = reqnum;
-            space_before_wrap = 0;
-            next_free_addr = QUEUE_START_ADDR;
-            // // Copy part of the payload that fits before the wrap
-            // memcpy(req->payload, req_ptr, space_before_wrap - sizeof(request_t));
-
-            // Step 2: Wrap around and copy the remaining payload at the start of the queue
-            uint32_t remaining_size = size;
-
-            uint32_t payload_addr = QUEUE_START_ADDR + sizeof(request_t);  // Wrap to the start of the queue
-            memcpy((void*)payload_addr, req_ptr, remaining_size);
-            request_t* last_req = (request_t*)head;
-            last_req->next = next_free_addr;  // Link last request to new one
-
-            WRITE_MEM(QUEUE_HEAD_ADDR, next_free_addr);
-        }
-
-        
-        
-
-    } else if (head < tail){
-        if ((next_free_addr +sizeof(request_t) + size) >= tail){
-            return PUT_FAIL;
-        }
-        
-                // Create new request at next_free_addr
-        request_t* req = (request_t*)next_free_addr;
-        req->next = 0; // No next request yet
-        req->size = size;
-        req->consumed = 0;
-        req->req_id = reqnum;
-        // Copy the payload
-        memcpy(req->payload, req_ptr, size);
-        
-        request_t* last_req = (request_t*)head;
-        last_req->next = next_free_addr;  // Link last request to new one
-        WRITE_MEM(QUEUE_HEAD_ADDR, next_free_addr);
-    } 
-    else {
-
-    
-        // Create new request at next_free_addr
-        request_t* req = (request_t*)next_free_addr;
-        req->next = 0; // No next request yet
-        req->size = size;
-        req->consumed = 0;
-        req->req_id = reqnum;
-        // Copy the payload
-        memcpy(req->payload, req_ptr, size);
-        
-        request_t* last_req = (request_t*)head;
-        last_req->next = next_free_addr;  // Link last request to new one
-        WRITE_MEM(QUEUE_HEAD_ADDR, next_free_addr);
-    }
-    return PUT_SUCCESS;
+static uint32_t obj_len(uint32_t size)
+{
+    return 8 + ((size + 3) & ~3u);
 }
 
-
-
-// Function to get the next request (consumer)
-void* get_request(uint32_t* size_out) {
-    // This function is utilized by the pmu core and the hypervisor is 
-    // responsible for initializing the request queue and then starting 
-    // the PMU core. Thus the check for tail pointer zero is not required
-    // as the hypervisor will change the tail pointer to the start address. 
-    // However, the tail pointer being at the start address may see the 
-    // consumed is zero and size is zero, and thus will not read the data
-    // and will return NULL
-    //
-    //
-    // uint32_t tail = read_mem(QUEUE_TAIL_ADDR);  // Get current tail pointer
-    // if (tail == 0) return NULL;  // Not initialized yet
-    //
-    //
-
-    uint32_t tail = READ_MEM(QUEUE_TAIL_ADDR);  // Get current tail pointer
-
-    request_t* req = (request_t*)tail;  // Get the current request
-    if (req->consumed == 0 && req->size != 0){  // consumed and size will be zero for first request object only
-        // Extract the payload size
-        *size_out = req->size;
-        
-        
-
-        
-        // Return pointer to the request
-        return req;
-    } else if (req->consumed == 1){       
-        if (req->next != 0) {
-            // TODO: it should return request pointer  in this path
-            WRITE_MEM(QUEUE_TAIL_ADDR, req->next);  // Move to the next request
-            get_request(size_out);
-        }
-    } else {
-        return NULL;
-    }
+void queue_init(uint32_t id)
+{
+    HEAD(id) = 0;
+    TAIL(id) = 0;
 }
 
+// The producer never lets head catch up with tail: head == tail means empty.
+queue_obj_t *queue_push_get_buffer(uint32_t id, uint32_t size)
+{
+    uint32_t head = HEAD(id), tail = TAIL(id), n = obj_len(size), pos = head;
+    queue_obj_t *obj;
 
-
-void consume_requests() {
-    // UART address for printing messages
-    volatile char *uart = (volatile char *)0x10000000;
-    
-    while (1) {
-        uint32_t size;
-        request_t *request_payload = get_request(&size);  // Check for a new request
-
-        
-        
-        if (request_payload != NULL) {
-
-            if ( ((char *)request_payload + sizeof(request_t) + request_payload->size) >  (QUEUE_SIZE+QUEUE_START_ADDR) ){ // wrap around condition
-                uint32_t bytes_before_wrap = QUEUE_SIZE + QUEUE_START_ADDR - (uint32_t)(request_payload->payload);
-                uint32_t bytes_after_wrap = request_payload->size - bytes_before_wrap;
-
-                // Print the first part of the payload (before wrap) over UART
-                for (uint32_t i = 0; i < bytes_before_wrap; i++) {
-                    *uart = request_payload->payload[i];
-                }
-
-                // Now print the remaining part of the payload that wrapped around
-                volatile char *wrapped_payload = (volatile char *)QUEUE_START_ADDR;  // Start address after wrap
-                for (uint32_t i = 0; i < bytes_after_wrap; i++) {
-                    *uart = wrapped_payload[i];
-                }
-
-                const char *newline = "\n";
-                while (*newline) {
-                    *uart = *newline++;
-                }
-
-                // Mark the request as consumed
-                request_payload->consumed = 1;
-                // Move the tail to the next request (or keep same if next = 0)
-                if (request_payload->next != 0) {
-                    WRITE_MEM(QUEUE_TAIL_ADDR, request_payload->next);  // Move to the next request
-                }
-            } else {
-
-                // Print the payload (request data) over UART
-                for (uint32_t i = 0; i < size; i++) {
-                    *uart = request_payload->payload[i];
-                }
-                
-                const char *newline = "\n";
-                while (*newline) {
-                    *uart = *newline++;
-                }
-
-                request_payload->consumed = 1;
-                // Move the tail to the next request (or keep same if next = 0)
-                if (request_payload->next != 0) {
-                    WRITE_MEM(QUEUE_TAIL_ADDR, request_payload->next);  // Move to the next request
-                }
-            }
+    if (head >= tail) {
+        uint32_t end = ABI_Q_DATA_SIZE - head;
+        if (!(n < end || (n == end && tail != 0))) {
+            if (n >= tail)
+                return 0;
+            OBJ(id, head)->size = ABI_Q_WRAP;
+            pos = 0;
         }
-        
-        
+    } else if (n >= tail - head) {
+        return 0;
     }
+    obj = OBJ(id, pos);
+    obj->size = size;
+    return obj;
 }
-// TODO: handle the corner case when sieze is greater than max_size /2
+
+void queue_push_buffer(uint32_t id, queue_obj_t *obj)
+{
+    uint32_t head = (uintptr_t)obj - (uintptr_t)OBJ(id, 0) + obj_len(obj->size);
+
+    HEAD(id) = head == ABI_Q_DATA_SIZE ? 0 : head;
+}
+
+queue_obj_t *queue_pop_get_buffer(uint32_t id, uint32_t *size_out)
+{
+    uint32_t tail = TAIL(id);
+
+    if (tail == HEAD(id))
+        return 0;
+    if (OBJ(id, tail)->size == ABI_Q_WRAP) {
+        TAIL(id) = tail = 0;
+        if (tail == HEAD(id))
+            return 0;
+    }
+    *size_out = OBJ(id, tail)->size;
+    return OBJ(id, tail);
+}
+
+void queue_pop(uint32_t id)
+{
+    uint32_t tail = TAIL(id) + obj_len(OBJ(id, TAIL(id))->size);
+
+    TAIL(id) = tail == ABI_Q_DATA_SIZE ? 0 : tail;
+}

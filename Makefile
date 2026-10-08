@@ -49,7 +49,7 @@ OBJDUMP = $(LLVM_BIN)/llvm-objdump
 OBJCOPY = $(LLVM_BIN)/llvm-objcopy
 CFLAGS = --target=riscv32-unknown-elf --sysroot=$(RISCV_SYSROOT) -L$(RISCV_SYSROOT)/lib -march=rv32im_zicsr -mabi=ilp32 -mcmodel=medlow \
          -Wall -fvisibility=hidden -ffreestanding \
-         -O2 -nostdlib -flto -I common/include -I $(RISCV_SYSROOT)/include -I common/include -I demos/include
+         -O2 -nostdlib -flto -I common/include -I $(RISCV_SYSROOT)/include -I common/include
 
 
 # --- Another alternative: system clang with a GCC toolchain (set RISCV_GCC_TOOLCHAIN) ---
@@ -67,10 +67,9 @@ CFLAGS = --target=riscv32-unknown-elf --sysroot=$(RISCV_SYSROOT) -L$(RISCV_SYSRO
 # Source directory
 SRC_DIR = .
 COMMON_SRC_DIR = ./common
-DEMOS_SRC_DIR = ./demos
 
 # Source files
-SRCS = $(SRC_DIR)/crt0.s $(SRC_DIR)/main.c $(wildcard $(COMMON_SRC_DIR)/*.c) $(wildcard $(DEMOS_SRC_DIR)/*.c)
+SRCS = $(SRC_DIR)/crt0.s $(SRC_DIR)/main.c $(wildcard $(COMMON_SRC_DIR)/*.c)
 
 # Linker script
 CFLAGS += -I$(NEWLIB_BUILD)/targ-include
@@ -87,7 +86,7 @@ TARGET = $(BUILD_DIR)/output.elf
 # Assembly dump file
 ASM_FILE_DISASM = $(BUILD_DIR)/output.asm
 ASM_FILE = $(BUILD_DIR)/main.s
-OBJ_FILES = $(BUILD_DIR)/crt0.o $(BUILD_DIR)/main.o $(patsubst $(COMMON_SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(wildcard $(COMMON_SRC_DIR)/*.c)) $(patsubst $(DEMOS_SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(wildcard $(DEMOS_SRC_DIR)/*.c))
+OBJ_FILES = $(BUILD_DIR)/crt0.o $(BUILD_DIR)/main.o $(patsubst $(COMMON_SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(wildcard $(COMMON_SRC_DIR)/*.c))
 
 # Binary file
 BIN_FILE = $(BUILD_DIR)/output.bin
@@ -95,7 +94,7 @@ BIN_FILE = $(BUILD_DIR)/output.bin
 # Custom instruction modification script
 MODIFY_SCRIPT = Implinstr.py
 
-.PHONY: all clean dump print_sizes
+.PHONY: all clean dump print_sizes components
 
 all: $(TARGET) dump print_sizes
 
@@ -116,12 +115,8 @@ $(BUILD_DIR)/main.o: $(SRC_DIR)/main.c | $(BUILD_DIR)
 $(BUILD_DIR)/%.o: $(COMMON_SRC_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Compile common .c files to .o
-$(BUILD_DIR)/%.o: $(DEMOS_SRC_DIR)/%.c | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
-
 # Compile .s to .o after modification
-compile_asm: $(BUILD_DIR)/crt0.o $(BUILD_DIR)/main.o $(patsubst $(COMMON_SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(wildcard $(COMMON_SRC_DIR)/*.c)) $(patsubst $(DEMOS_SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(wildcard $(DEMOS_SRC_DIR)/*.c))
+compile_asm: $(BUILD_DIR)/crt0.o $(BUILD_DIR)/main.o $(patsubst $(COMMON_SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(wildcard $(COMMON_SRC_DIR)/*.c))
 
 # Link object files to create ELF
 $(TARGET): compile_asm | $(BUILD_DIR)
@@ -138,6 +133,24 @@ generate-bin-files: $(TARGET)
 	$(OBJCOPY) -O binary --only-section=.text $(TARGET) build/text_section.bin
 	$(OBJCOPY) -O binary --only-section=.data --only-section=.rodata --only-section=.bss $(TARGET) build/data_rodata_bss.bin
 
+
+# Dynamic components: components/<name>/*.c -> build/<name>.o, a relocatable
+# object. The host links it into free ISPM/DSPM at install time
+# (`apmu install build/<name>.o`).
+COMPONENTS = $(notdir $(patsubst %/,%,$(wildcard components/*/)))
+COMP_CFLAGS = --target=riscv32-unknown-elf -march=rv32im_zicsr -mabi=ilp32 -mcmodel=medlow \
+	-Os -Wall -ffreestanding -fno-builtin -fno-common -mno-relax -I common/include
+
+components: | $(BUILD_DIR)
+	@for c in $(COMPONENTS); do \
+	  objs=; \
+	  for f in components/$$c/*.c; do \
+	    o=$(BUILD_DIR)/$$c-$$(basename $$f .c).o; \
+	    $(CC) $(COMP_CFLAGS) -c $$f -o $$o || exit 1; objs="$$objs $$o"; \
+	  done; \
+	  $(LLVM_BIN)/ld.lld -r $$objs -o $(BUILD_DIR)/$$c.o || exit 1; \
+	  echo "$(BUILD_DIR)/$$c.o"; \
+	done
 
 generate-assembly: $(BUILD_DIR)
 	$(CC) $(CFLAGS) -S src/main.c -o $(BUILD_DIR)/main.S
